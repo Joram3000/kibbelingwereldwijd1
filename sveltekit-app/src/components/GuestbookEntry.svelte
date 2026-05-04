@@ -25,9 +25,8 @@
 <style>
   .container {
     padding: var(--space-3, 1rem);
-    border: 1px solid #080808;
+    border: 1px solid #ced2d9;
     border-radius: 8px;
-    background-color: yellow;
   }
 
   .entry__header {

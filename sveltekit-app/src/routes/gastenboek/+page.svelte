@@ -7,10 +7,35 @@
 
   let submitting = $state(false)
   let formEl: HTMLFormElement | null = null
+  let textareaEl: HTMLTextAreaElement | null = null
+  // svelte-ignore state_referenced_locally
+  let message = $state(form?.message ?? '')
+  let pickerOpen = $state(false)
+
+  function insertEmoji(emoji: string) {
+    if (!textareaEl) return
+    const start = textareaEl.selectionStart ?? message.length
+    const end = textareaEl.selectionEnd ?? message.length
+    message = message.slice(0, start) + emoji + message.slice(end)
+    // cursor na de ingevoegde emoji zetten
+    setTimeout(() => {
+      textareaEl?.focus()
+      const pos = start + emoji.length
+      textareaEl?.setSelectionRange(pos, pos)
+    })
+  }
 </script>
+
+<svelte:window on:click={(e) => {
+  if (pickerOpen && !(e.target as Element).closest('.emoji-area')) {
+    pickerOpen = false
+  }
+}} />
 
 <section class="gastenboek">
   <h1>Gastenboek</h1>
+
+  <p>Schrijf een leuk berichtje en vergeet niet om glipla's toe te voegen anders telt het niet.</p>
 
   <form
     bind:this={formEl}
@@ -22,6 +47,7 @@
         submitting = false
         if (!form?.error) {
           formEl?.reset()
+          message = ''
         }
       }
     }}
@@ -59,13 +85,42 @@
 
     <label>
       Bericht
-      <textarea
-        name="message"
-        maxlength="1000"
-        required
-        placeholder="Schrijf hier je bericht..."
-        rows="4">{form?.message ?? ''}</textarea
-      >
+      <div class="emoji-area">
+        <textarea
+          bind:this={textareaEl}
+          bind:value={message}
+          name="message"
+          maxlength="1000"
+          required
+          placeholder="Schrijf hier je bericht..."
+          rows="4"
+        ></textarea>
+        <div class="emoji-toolbar">
+          <button
+            type="button"
+            class="emoji-toggle"
+            aria-label="Emoji's invoegen"
+            onclick={() => (pickerOpen = !pickerOpen)}
+          >
+            😊
+          </button>
+          {#if pickerOpen}
+            <div class="emoji-picker" role="dialog" aria-label="Kies een emoji">
+              {#each data.emojis as {emoji, label}}
+                <button
+                  type="button"
+                  class="emoji-option"
+                  title={label}
+                  aria-label={label}
+                  onclick={() => { insertEmoji(emoji); pickerOpen = false }}
+                >
+                  {emoji}
+                </button>
+              {/each}
+            </div>
+          {/if}
+        </div>
+      </div>
     </label>
 
     <button type="submit" disabled={submitting}>
@@ -141,7 +196,63 @@
     resize: vertical;
   }
 
-  button {
+  .emoji-area {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .emoji-toolbar {
+    position: relative;
+    align-self: flex-start;
+  }
+
+  .emoji-toggle {
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    line-height: 1;
+  }
+
+  .emoji-toggle:hover {
+    background: #e5e7eb;
+  }
+
+  .emoji-picker {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 10;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 8px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    width: 220px;
+  }
+
+  .emoji-option {
+    background: none;
+    border: none;
+    font-size: 1.4rem;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    line-height: 1;
+  }
+
+  .emoji-option:hover {
+    background: #f3f4f6;
+  }
+
+  button[type='submit'] {
     align-self: flex-start;
     padding: 10px 24px;
     background: #000;
@@ -153,12 +264,12 @@
     cursor: pointer;
   }
 
-  button:disabled {
+  button[type='submit']:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
 
-  button:not(:disabled):hover {
+  button[type='submit']:not(:disabled):hover {
     background: #333;
   }
 

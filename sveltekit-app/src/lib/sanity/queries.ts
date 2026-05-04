@@ -12,6 +12,10 @@ export const guestbookQuery = groq`*[_type == "guestbookEntry"] | order(_created
   message
 }`
 
+export const emojiConfigQuery = groq`*[_type == "emojiConfig" && _id == "emojiConfig"][0] {
+  emojis[] { emoji, label }
+}`
+
 export interface Post {
   _type: 'post'
   _createdAt: string
@@ -29,3 +33,25 @@ export interface GuestbookEntry {
   message: string
   email?: string
 }
+
+export interface EmojiOption {
+  emoji: string
+  label: string
+}
+
+export const DEFAULT_EMOJIS: EmojiOption[] = [
+  {emoji: '😄', label: 'Blij'},
+  {emoji: '❤️', label: 'Hart'},
+  {emoji: '😂', label: 'Haha'},
+  {emoji: '😮', label: 'Wauw'},
+  {emoji: '🔥', label: 'Vuur'},
+  {emoji: '👍', label: 'Top'},
+  {emoji: '🎉', label: 'Feest'},
+  {emoji: '😎', label: 'Cool'},
+  {emoji: '🤔', label: 'Hmm'},
+  {emoji: '😢', label: 'Verdriet'},
+  {emoji: '🙏', label: 'Dankjewel'},
+  {emoji: '💪', label: 'Sterk'},
+  {emoji: '🐟', label: 'Vis'},
+  {emoji: '🍟', label: 'Friet'},
+]

@@ -6,6 +6,7 @@ import {youtube} from './objects/youtube'
 import {vimeo} from './objects/vimeo'
 import {imageGallery} from './objects/imageGallery'
 import guestbookEntry from './guestbookEntry'
+import emojiConfig from './emojiConfig'
 
 export const schemaTypes = [
   post,
@@ -16,4 +17,5 @@ export const schemaTypes = [
   vimeo,
   imageGallery,
   guestbookEntry,
+  emojiConfig,
 ]

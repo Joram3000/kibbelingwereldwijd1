@@ -1,11 +1,17 @@
 import {serverClient, writeClient} from '$lib/sanity/client.server'
 import {fail} from '@sveltejs/kit'
 import type {Actions, PageServerLoad} from './$types'
-import {guestbookQuery} from '$lib/sanity/queries'
+import {guestbookQuery, emojiConfigQuery, DEFAULT_EMOJIS} from '$lib/sanity/queries'
 
 export const load: PageServerLoad = async () => {
-  const entries = await serverClient.fetch(guestbookQuery)
-  return {entries}
+  const [entries, emojiConfig] = await Promise.all([
+    serverClient.fetch(guestbookQuery),
+    serverClient.fetch(emojiConfigQuery),
+  ])
+
+  const emojis = emojiConfig?.emojis?.length ? emojiConfig.emojis : DEFAULT_EMOJIS
+
+  return {entries, emojis}
 }
 
 export const actions: Actions = {
