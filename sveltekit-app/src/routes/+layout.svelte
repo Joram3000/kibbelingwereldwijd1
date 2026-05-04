@@ -57,6 +57,9 @@
       <div class="container">
         <header class="header">
           <a class="header__title" href="/">Smikkeling wereldwijd</a>
+          <nav class="header__nav">
+            <a href="/gastenboek">Gastenboek</a>
+          </nav>
         </header>
         <main>
           {@render children()}
@@ -93,8 +96,26 @@
     margin-top: 45px;
   }
 
+  .header__nav {
+    display: flex;
+    align-items: center;
+    padding-right: var(--space-2);
+  }
+
+  .header__nav a {
+    font-size: var(--font-size-2, 0.875rem);
+    font-weight: 600;
+    text-decoration: none;
+    color: var(--black);
+  }
+
+  .header__nav a:hover {
+    text-decoration: underline;
+  }
+
   .header {
     display: flex;
+    justify-content: space-between;
     padding: 0 var(--space-1);
     border-bottom: 1px solid #ced2d9;
 
