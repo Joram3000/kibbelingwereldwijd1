@@ -7,6 +7,7 @@
   import {onMount} from 'svelte'
   import {dev} from '$app/environment'
   import Header from '../components/Header.svelte'
+  import KaleidoscopeBackground from '../components/KaleidoscopeBackground.svelte'
   // import {injectSpeedInsights} from '@vercel/speed-insights/sveltekit'
 
   const {children, data}: LayoutProps = $props()
@@ -55,6 +56,13 @@
         </a>
       {/if}
 
+      <KaleidoscopeBackground
+        imageUrl="/logo.webp"
+        segments={19}
+        speed={0.01}
+        zoom={5.1}
+        opacity={1.35}
+      />
       <div class="container">
         <Header />
         <main>

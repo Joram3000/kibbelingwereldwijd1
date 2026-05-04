@@ -12,7 +12,6 @@
   .header__nav {
     display: flex;
     align-items: center;
-    /* padding-right: var(--space-2); */
   }
 
   .header__nav a {
@@ -32,7 +31,6 @@
     align-items: flex-start;
     padding: 0 var(--space-1);
     border-bottom: 1px solid #ced2d9;
-    height: 100%;
     z-index: 10;
     background: var(--white);
     position: fixed;
@@ -49,7 +47,6 @@
     margin: var(--space-3) 0;
     text-decoration: none;
     color: var(--black);
-    height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;

@@ -52,9 +52,7 @@
 }
 
 html {
-  background-color: var(--white);
-  background-image: url('/logo.webp');
-  background-position: top center;
+  background-color: transparent;
   font-family: var(--font-family-sans), var(--font-family-serif), sans-serif;
   -webkit-text-size-adjust: 100%;
   -moz-text-size-adjust: 100%;
@@ -63,6 +61,7 @@ html {
 
 body {
   margin: 0;
+  min-height: 100vh;
 }
 
 body.show-yellow-border
