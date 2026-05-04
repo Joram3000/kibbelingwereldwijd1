@@ -3,8 +3,14 @@ import type {ImageAsset, Slug} from '@sanity/types'
 import groq from 'groq'
 
 export const postQuery = groq`*[_type == "post" && slug.current == $slug][0]`
-
 export const postsQuery = groq`*[_type == "post" && defined(slug.current)] | order(_createdAt desc)`
+
+export const guestbookQuery = groq`*[_type == "guestbookEntry"] | order(_createdAt desc) {
+  _id,
+  _createdAt,
+  name,
+  message
+}`
 
 export interface Post {
   _type: 'post'
@@ -14,4 +20,12 @@ export interface Post {
   excerpt?: string
   mainImage?: ImageAsset
   body: PortableTextBlock[]
+}
+
+export interface GuestbookEntry {
+  _id: string
+  _createdAt: string
+  name: string
+  message: string
+  email?: string
 }

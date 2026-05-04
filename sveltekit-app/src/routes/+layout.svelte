@@ -6,6 +6,7 @@
   import {client} from '$lib/sanity/client'
   import {onMount} from 'svelte'
   import {dev} from '$app/environment'
+  import Header from '../components/Header.svelte'
   // import {injectSpeedInsights} from '@vercel/speed-insights/sveltekit'
 
   const {children, data}: LayoutProps = $props()
@@ -55,12 +56,7 @@
       {/if}
 
       <div class="container">
-        <header class="header">
-          <a class="header__title" href="/">Smikkeling wereldwijd</a>
-          <nav class="header__nav">
-            <a href="/gastenboek">Gastenboek</a>
-          </nav>
-        </header>
+        <Header />
         <main>
           {@render children()}
         </main>
@@ -96,47 +92,6 @@
     margin-top: 45px;
   }
 
-  .header__nav {
-    display: flex;
-    align-items: center;
-    padding-right: var(--space-2);
-  }
-
-  .header__nav a {
-    font-size: var(--font-size-2, 0.875rem);
-    font-weight: 600;
-    text-decoration: none;
-    color: var(--black);
-  }
-
-  .header__nav a:hover {
-    text-decoration: underline;
-  }
-
-  .header {
-    display: flex;
-    justify-content: space-between;
-    padding: 0 var(--space-1);
-    border-bottom: 1px solid #ced2d9;
-
-    z-index: 10;
-    background: var(--white);
-    position: fixed;
-    left: 0;
-    right: 0;
-    top: 0;
-  }
-
-  .header .header__title {
-    font-weight: 800;
-    font-size: var(--font-size-5);
-    line-height: var(--line-height-1);
-    padding-left: var(--space-2);
-    margin: var(--space-3) 0;
-    text-decoration: none;
-    color: var(--black);
-  }
-
   .footer {
     display: flex;
     justify-content: flex-end;
@@ -159,21 +114,6 @@
 
     main {
       margin-top: unset;
-    }
-
-    .header {
-      position: unset;
-      border-bottom: none;
-      margin: var(--space-3) 0;
-      padding: var(--space-2) 0;
-      background: unset;
-    }
-
-    .header .header__title {
-      margin: var(--space-3) 0 var(--space-2);
-      font-size: var(--font-size-8);
-      text-align: center;
-      width: 100%;
     }
 
     .footer {

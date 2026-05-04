@@ -1,0 +1,4 @@
+{
+  "svelte.plugin.ts.tsconfigPath": "./.svelte-kit/tsconfig.json",
+  "typescript.tsdk": "./node_modules/typescript/lib"
+}

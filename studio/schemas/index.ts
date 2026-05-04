@@ -5,6 +5,7 @@ import {carousel} from './objects/carousel'
 import {youtube} from './objects/youtube'
 import {vimeo} from './objects/vimeo'
 import {imageGallery} from './objects/imageGallery'
+import guestbookEntry from './guestbookEntry'
 
 export const schemaTypes = [
   post,
@@ -14,4 +15,5 @@ export const schemaTypes = [
   youtube,
   vimeo,
   imageGallery,
+  guestbookEntry,
 ]
