@@ -1,9 +1,11 @@
-import {defineField, defineType} from 'sanity'
+import {defineField, defineType, defineArrayMember} from 'sanity'
+import {DocumentTextIcon} from '@sanity/icons'
 
 export default defineType({
   name: 'post',
   title: 'Post',
   type: 'document',
+  icon: DocumentTextIcon,
   fields: [
     defineField({
       name: 'title',
@@ -37,18 +39,29 @@ export default defineType({
     defineField({
       name: 'body',
       title: 'Body',
-      type: 'blockContent',
+      type: 'array',
+      of: [
+        {type: 'block'},
+        {type: 'image'},
+        {type: 'wrapTextAroundImage'},
+        {type: 'carousel'},
+        {type: 'youtube'},
+        {type: 'vimeo'},
+        {type: 'imageGallery'},
+      ],
     }),
   ],
   preview: {
     select: {
       title: 'title',
-      author: 'author.name',
       media: 'mainImage',
     },
-    prepare(selection) {
-      const {author} = selection
-      return {...selection, subtitle: author && `by ${author}`}
+    prepare(value: any) {
+      const {title, media} = value
+      return {
+        title: title || 'Untitled',
+        media,
+      }
     },
   },
 })

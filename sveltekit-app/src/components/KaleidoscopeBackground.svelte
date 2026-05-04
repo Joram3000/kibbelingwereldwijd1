@@ -1,12 +1,23 @@
 <script lang="ts">
   import {onMount} from 'svelte'
 
-  export let imageUrl = '/logo.webp'
-  export let segments = 8
-  export let speed = 0.08
-  export let zoom = 1.4
-  export let opacity = 0.45
-  export let enabled = true
+  interface Props {
+    imageUrl?: string
+    segments?: number
+    speed?: number
+    zoom?: number
+    opacity?: number
+    enabled?: boolean
+  }
+
+  const {
+    imageUrl = '/logo.webp',
+    segments = 8,
+    speed = 0.08,
+    zoom = 1.4,
+    opacity = 0.45,
+    enabled = true,
+  }: Props = $props()
 
   let canvas: HTMLCanvasElement
   let gl: WebGLRenderingContext

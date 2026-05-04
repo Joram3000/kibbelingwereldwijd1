@@ -1,6 +1,6 @@
 import {defineType, defineField, defineArrayMember} from 'sanity'
 
-export const carousel = defineType({
+export default defineType({
   name: 'carousel',
   title: 'Carousel',
   type: 'object',
@@ -18,7 +18,6 @@ export const carousel = defineType({
         defineArrayMember({
           type: 'image',
           options: {hotspot: true},
-
           fields: [
             defineField({name: 'caption', type: 'string', title: 'Caption'}),
             defineField({name: 'link', type: 'url', title: 'Optional link'}),

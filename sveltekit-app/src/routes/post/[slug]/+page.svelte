@@ -1,9 +1,9 @@
 <script lang="ts">
   import {useQuery} from '@sanity/sveltekit'
-  import {PortableText} from '@portabletext/svelte'
   import {formatDate} from '$lib/utils'
   import {urlFor} from '$lib/sanity/image'
   import type {PageProps} from './$types'
+  import PortableText from '../../../components/PortableText.svelte'
 
   const {data}: PageProps = $props()
   const query = $derived(useQuery(data))
@@ -18,8 +18,6 @@
         src={urlFor(post.mainImage).url()}
         alt="Cover image for {post.title}"
       />
-    {:else}
-      <div class="post__cover--none"></div>
     {/if}
     <div class="post__container">
       <h1 class="post__title">{post.title}</h1>
@@ -31,7 +29,7 @@
       </p>
       {#if post.body}
         <div class="post__content">
-          <PortableText components={{}} value={post.body} />
+          <PortableText value={post.body} />
         </div>
       {/if}
     </div>
@@ -44,16 +42,10 @@
     margin: var(--space-1) 0 var(--space-4);
   }
 
-  .post .post__cover,
-  .post .post__cover--none {
+  .post .post__cover {
     width: 100%;
     height: 200px;
-    -o-object-fit: cover;
     object-fit: cover;
-  }
-
-  .post .post__cover--none {
-    background: var(--black);
   }
 
   .post .post__container {
@@ -99,15 +91,13 @@
   .post .post__date {
     font-family: var(--font-family-sans);
     font-weight: 600;
-    font-family: var(--font-family-sans);
     font-size: var(--font-size-1);
     line-height: var(--line-height-1);
     margin-top: var(--space-4);
   }
 
   @media (min-width: 800px) {
-    .post .post__cover,
-    .post .post__cover--none {
+    .post .post__cover {
       width: 750px;
       height: 380px;
     }

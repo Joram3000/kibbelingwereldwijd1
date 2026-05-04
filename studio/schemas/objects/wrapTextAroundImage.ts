@@ -1,38 +1,38 @@
 import {defineType, defineField, defineArrayMember} from 'sanity'
 
-export const wrapTextAroundImage = defineType({
+export default defineType({
   name: 'wrapTextAroundImage',
-  title: 'Wrap Text Around Image',
+  title: 'Tekst om afbeelding',
   type: 'object',
   fields: [
     defineField({
       name: 'image',
-      title: 'Image',
+      title: 'Afbeelding',
       type: 'image',
       options: {hotspot: true},
       fields: [
         defineField({
           name: 'alt',
-          title: 'Alternative Text',
+          title: 'Alt-tekst',
           type: 'string',
-          description: 'Important for accessibility and SEO',
+          description: 'Belangrijk voor toegankelijkheid en SEO',
         }),
         defineField({
           name: 'caption',
-          title: 'Caption',
+          title: 'Bijschrift',
           type: 'string',
-          description: 'Optional caption to display below the image',
+          description: 'Optioneel bijschrift onder de afbeelding',
         }),
       ],
     }),
     defineField({
       name: 'position',
-      title: 'Position',
+      title: 'Positie',
       type: 'string',
       options: {
         list: [
-          {title: 'Left', value: 'left'},
-          {title: 'Right', value: 'right'},
+          {title: 'Links', value: 'left'},
+          {title: 'Rechts', value: 'right'},
         ],
         layout: 'radio',
       },
@@ -40,26 +40,25 @@ export const wrapTextAroundImage = defineType({
     }),
     defineField({
       name: 'width',
-      title: 'Width (%)',
+      title: 'Breedte (%)',
       type: 'number',
-      description: 'Width of the image as percentage of container',
+      description: 'Breedte van de afbeelding als percentage van de container',
       initialValue: 30,
     }),
     defineField({
       name: 'content',
-      title: 'Content',
+      title: 'Inhoud',
       type: 'array',
       of: [defineArrayMember({type: 'block'})],
-      description: 'Text that will wrap around the image',
+      description: 'Tekst die om de afbeelding loopt',
     }),
   ],
   preview: {
     select: {image: 'image', position: 'position', width: 'width'},
-    prepare(value: Record<string, any>) {
-      const {image, position, width} = value
+    prepare({image, position, width}: {image: unknown; position?: string; width?: number}) {
       return {
-        title: 'Text with Wrapped Image',
-        subtitle: `Position: ${position || 'left'}, Width: ${width || 30}%`,
+        title: 'Tekst om afbeelding',
+        subtitle: `Positie: ${position || 'links'}, Breedte: ${width || 30}%`,
         media: image,
       }
     },

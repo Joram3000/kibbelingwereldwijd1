@@ -51,6 +51,29 @@ export const agendaQuery = groq`*[_type == "agendaItem" && dateTime(date) >= dat
   linkLabel
 }`
 
+export interface HeroBlock {
+  backgroundType?: 'color' | 'media'
+  backgroundColor?: string
+  mediaType?: 'image' | 'video'
+  backgroundImage?: import('@sanity/types').Image
+  videoType?: 'upload' | 'external'
+  externalVideoUrl?: string
+  posterImage?: import('@sanity/types').Image
+  overlayColor?: string
+  overlayOpacity?: number
+  headingText?: string
+  subheading?: string
+  contentAlignment?: 'left' | 'center' | 'right'
+  textColor?: string
+  ctaButton?: {
+    text?: string
+    link?: string
+    openInNewTab?: boolean
+    backgroundColor?: string
+    textColor?: string
+  }
+}
+
 export interface AgendaItem {
   _id: string
   title: string

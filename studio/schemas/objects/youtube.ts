@@ -1,6 +1,6 @@
 import {defineType, defineField} from 'sanity'
 
-export const youtube = defineType({
+export default defineType({
   name: 'youtube',
   title: 'YouTube',
   type: 'object',
@@ -20,7 +20,7 @@ export const youtube = defineType({
             return /^(www\.)?(youtube\.com|youtu\.be)$/.test(u.hostname)
               ? true
               : 'URL moet van YouTube (youtube.com of youtu.be) zijn'
-          } catch (e) {
+          } catch {
             return 'Ongeldige URL'
           }
         }),

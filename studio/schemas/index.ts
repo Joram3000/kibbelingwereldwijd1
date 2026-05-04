@@ -1,23 +1,24 @@
 import blockContent from './blockContent'
-import {wrapTextAroundImage} from './objects/wrapTextAroundImage'
 import post from './post'
-import {carousel} from './objects/carousel'
-import {youtube} from './objects/youtube'
-import {vimeo} from './objects/vimeo'
-import {imageGallery} from './objects/imageGallery'
+
 import guestbookEntry from './guestbookEntry'
 import emojiConfig from './emojiConfig'
 import agendaItem from './agendaItem'
+import carousel from './objects/carousel'
+import vimeo from './objects/vimeo'
+import youtube from './objects/youtube'
+import wrapTextAroundImage from './objects/wrapTextAroundImage'
+import imageGallery from './objects/imageGallery'
 
 export const schemaTypes = [
   post,
   blockContent,
-  wrapTextAroundImage,
-  carousel,
-  youtube,
-  vimeo,
-  imageGallery,
   guestbookEntry,
   emojiConfig,
   agendaItem,
+  carousel,
+  vimeo,
+  youtube,
+  wrapTextAroundImage,
+  imageGallery,
 ]

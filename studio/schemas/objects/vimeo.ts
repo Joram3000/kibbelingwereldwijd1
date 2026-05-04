@@ -1,12 +1,13 @@
 import {defineType, defineField} from 'sanity'
 
-export const vimeo = defineType({
+export default defineType({
   name: 'vimeo',
   title: 'Vimeo',
   type: 'object',
   fields: [
     defineField({
       name: 'url',
+      title: 'Vimeo URL',
       type: 'url',
       validation: (Rule) => [
         Rule.required().error('Een geldige Vimeo URL is vereist om de video te tonen.'),
@@ -17,7 +18,7 @@ export const vimeo = defineType({
             return /^(www\.)?(vimeo\.com|player\.vimeo\.com)$/.test(u.hostname)
               ? true
               : 'URL moet van Vimeo (vimeo.com of player.vimeo.com) zijn'
-          } catch (e) {
+          } catch {
             return 'Ongeldige URL'
           }
         }),
@@ -28,7 +29,7 @@ export const vimeo = defineType({
     select: {url: 'url'},
     prepare({url}) {
       return {
-        title: 'Vimeo Video',
+        title: 'Vimeo video',
         subtitle: url,
       }
     },

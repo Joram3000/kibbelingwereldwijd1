@@ -1,14 +1,8 @@
 <script lang="ts">
-  interface Props {
-    name: string
-    message: string
-    date: Date
-  }
-
-  const {name, message, date}: Props = $props()
+  const {name, message, date}: {name: string; message: string; date: Date} = $props()
 </script>
 
-<article class="container">
+<article class="entry">
   <header class="entry__header">
     <strong class="entry__name">{name}</strong>
     <time class="entry__date" datetime={date.toISOString()}>
@@ -23,10 +17,12 @@
 </article>
 
 <style>
-  .container {
+  .entry {
     padding: var(--space-3, 1rem);
-    border: 1px solid #ced2d9;
+    border: 1px solid red;
     border-radius: 8px;
+    backdrop-filter: blur(232px);
+    background: rgba(255, 255, 255, 0.8);
   }
 
   .entry__header {
@@ -34,7 +30,7 @@
     justify-content: space-between;
     align-items: baseline;
     gap: var(--space-2, 0.5rem);
-    margin-bottom: 8px;
+    margin-bottom: var(--space-2, 0.5rem);
     flex-wrap: wrap;
   }
 

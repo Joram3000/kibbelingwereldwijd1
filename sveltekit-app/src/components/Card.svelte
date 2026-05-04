@@ -1,9 +1,9 @@
 <script lang="ts">
-  import {formatDate} from '$lib/utils'
-  import {urlFor} from '$lib/sanity/image'
-  import type {Post} from '$lib/sanity/queries'
+  import { formatDate } from '$lib/utils'
+  import { urlFor } from '$lib/sanity/image'
+  import type { Post } from '$lib/sanity/queries'
 
-  export let post: Post
+  const { post }: { post: Post } = $props()
 </script>
 
 <a class="card" href={`/post/${post.slug.current}`}>
@@ -35,7 +35,6 @@
     display: flex;
     flex-direction: column;
     padding: var(--space-2);
-    padding: 9px;
     position: relative;
     border-bottom: 1px solid #ced2d9;
     backdrop-filter: blur(100px);
@@ -50,7 +49,6 @@
   .card .card__cover {
     width: 100%;
     height: 231px;
-    -o-object-fit: cover;
     object-fit: cover;
   }
 
@@ -81,7 +79,7 @@
     font-weight: 600;
     font-family: var(--font-family-sans);
     font-size: var(--font-size-1);
-    margin-top: calc(var(----space-4) + 7);
+    margin-top: var(--space-4);
   }
 
   .card:hover .card__title {

@@ -1,19 +1,16 @@
-<script lang="ts">
-</script>
-
 <header class="header">
   <a class="header__title" href="/">Smikkeling wereldwijd</a>
   <nav class="header__nav">
     <a href="/gastenboek">Gastenboek</a>
     <a href="/agenda">Agenda</a>
-    <a href="/grabbeltom">Grabbeltom</a>
   </nav>
 </header>
 
 <style>
   .header__nav {
     display: flex;
-    align-items: center;
+    align-items: flex-end;
+    flex-direction: column;
   }
 
   .header__nav a {

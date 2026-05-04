@@ -1,29 +1,28 @@
 import {defineField, defineType, defineArrayMember} from 'sanity'
 
-export const imageGallery = defineType({
+export default defineType({
   name: 'imageGallery',
-  title: 'Image Gallery',
+  title: 'Afbeeldingengalerij',
   type: 'object',
-
   fields: [
     defineField({
       name: 'images',
-      title: 'Images',
+      title: 'Afbeeldingen',
       type: 'array',
       of: [
         defineArrayMember({
           type: 'image',
           name: 'image',
-          title: 'Image',
+          title: 'Afbeelding',
           options: {hotspot: true},
           fields: [
-            {
+            defineField({
               name: 'alt',
               type: 'string',
-              title: 'Alt text',
+              title: 'Alt-tekst',
               description: 'Voor toegankelijkheid en SEO.',
               validation: (Rule) => [Rule.warning('Voeg alt tekst toe voor toegankelijkheid')],
-            },
+            }),
           ],
         }),
       ],

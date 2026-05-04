@@ -94,6 +94,7 @@
 <style>
   .container {
     margin: 0 auto;
+    backdrop-filter: blur(20px);
   }
 
   main {
