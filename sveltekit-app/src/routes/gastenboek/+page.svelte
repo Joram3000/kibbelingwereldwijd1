@@ -2,6 +2,7 @@
   import {enhance} from '$app/forms'
   import GuestbookEntry from '../../components/GuestbookEntry.svelte'
   import type {PageProps} from './$types'
+  import {visualLength, MESSAGE_MAX} from '$lib/utils/message'
 
   const {data, form}: PageProps = $props()
 
@@ -12,15 +13,17 @@
   let message = $state(form?.message ?? '')
   let pickerOpen = $state(false)
 
-  function insertEmoji(emoji: string) {
+  const visLen = $derived(visualLength(message))
+  const overLimit = $derived(visLen > MESSAGE_MAX)
+
+  function insertText(text: string) {
     if (!textareaEl) return
     const start = textareaEl.selectionStart ?? message.length
     const end = textareaEl.selectionEnd ?? message.length
-    message = message.slice(0, start) + emoji + message.slice(end)
-    // cursor na de ingevoegde emoji zetten
+    message = message.slice(0, start) + text + message.slice(end)
     setTimeout(() => {
       textareaEl?.focus()
-      const pos = start + emoji.length
+      const pos = start + text.length
       textareaEl?.setSelectionRange(pos, pos)
     })
   }
@@ -90,11 +93,11 @@
           bind:this={textareaEl}
           bind:value={message}
           name="message"
-          maxlength="1000"
           required
           placeholder="Schrijf hier je bericht..."
           rows="4"
         ></textarea>
+        <span class="char-count" class:over={overLimit}>{visLen}/{MESSAGE_MAX}</span>
         <div class="emoji-toolbar">
           <button
             type="button"
@@ -106,15 +109,19 @@
           </button>
           {#if pickerOpen}
             <div class="emoji-picker" role="dialog" aria-label="Kies een emoji">
-              {#each data.emojis as {emoji, label}}
+              {#each data.emojis as {emoji, label, imageUrl}}
                 <button
                   type="button"
                   class="emoji-option"
                   title={label}
                   aria-label={label}
-                  onclick={() => { insertEmoji(emoji); pickerOpen = false }}
+                  onclick={() => { insertText(imageUrl ? `〔${label}〕` : (emoji ?? label)); pickerOpen = false }}
                 >
-                  {emoji}
+                  {#if imageUrl}
+                    <img src={imageUrl} alt={label} class="emoji-img" />
+                  {:else}
+                    {emoji}
+                  {/if}
                 </button>
               {/each}
             </div>
@@ -123,7 +130,7 @@
       </div>
     </label>
 
-    <button type="submit" disabled={submitting}>
+    <button type="submit" disabled={submitting || overLimit}>
       {submitting ? 'Versturen...' : 'Plaatsen'}
     </button>
   </form>
@@ -137,6 +144,7 @@
           name={entry.name}
           message={entry.message}
           date={new Date(entry._createdAt)}
+          emojis={data.emojis}
         />
       {/each}
     {/if}
@@ -196,6 +204,17 @@
     resize: vertical;
   }
 
+  .char-count {
+    align-self: flex-end;
+    font-size: 0.75rem;
+    color: #9ca3af;
+  }
+
+  .char-count.over {
+    color: #dc2626;
+    font-weight: 600;
+  }
+
   .emoji-area {
     position: relative;
     display: flex;
@@ -246,10 +265,20 @@
     padding: 4px;
     border-radius: 4px;
     line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .emoji-option:hover {
     background: #f3f4f6;
+  }
+
+  .emoji-img {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+    display: block;
   }
 
   button[type='submit'] {

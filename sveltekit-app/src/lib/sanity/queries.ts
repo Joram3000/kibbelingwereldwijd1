@@ -13,7 +13,7 @@ export const guestbookQuery = groq`*[_type == "guestbookEntry"] | order(_created
 }`
 
 export const emojiConfigQuery = groq`*[_type == "emojiConfig" && _id == "emojiConfig"][0] {
-  emojis[] { emoji, label }
+  emojis[] { emoji, label, "imageUrl": image.asset->url }
 }`
 
 export interface Post {
@@ -35,8 +35,9 @@ export interface GuestbookEntry {
 }
 
 export interface EmojiOption {
-  emoji: string
+  emoji?: string
   label: string
+  imageUrl?: string
 }
 
 export const agendaQuery = groq`*[_type == "agendaItem" && dateTime(date) >= dateTime(now())] | order(date asc) {

@@ -1,9 +1,9 @@
 <script lang="ts">
-  import { formatDate } from '$lib/utils'
-  import { urlFor } from '$lib/sanity/image'
-  import type { Post } from '$lib/sanity/queries'
+  import {formatDate} from '$lib/utils'
+  import {urlFor} from '$lib/sanity/image'
+  import type {Post} from '$lib/sanity/queries'
 
-  const { post }: { post: Post } = $props()
+  const {post}: {post: Post} = $props()
 </script>
 
 <a class="card" href={`/post/${post.slug.current}`}>
@@ -36,7 +36,6 @@
     flex-direction: column;
     padding: var(--space-2);
     position: relative;
-    border-bottom: 1px solid #ced2d9;
     backdrop-filter: blur(100px);
     color: var(--black);
     text-decoration: none;

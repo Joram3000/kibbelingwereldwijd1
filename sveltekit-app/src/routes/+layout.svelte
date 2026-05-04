@@ -41,6 +41,10 @@
   })
 </script>
 
+<svelte:head>
+  <title>Kibbeling Wereldwijd</title>
+</svelte:head>
+
 <PreviewMode enabled={previewEnabled}>
   <VisualEditing enabled={previewEnabled}>
     <QueryLoader enabled={previewEnabled} {client}>
@@ -56,13 +60,6 @@
         </a>
       {/if}
 
-      <!-- <KaleidoscopeBackground
-        imageUrl="/logo.webp"
-        segments={19}
-        speed={0.01}
-        zoom={5.1}
-        opacity={1.35}
-      /> -->
       <div class="container">
         <Header />
         <main>
@@ -94,7 +91,7 @@
 <style>
   .container {
     margin: 0 auto;
-    backdrop-filter: blur(20px);
+    /* backdrop-filter: blur(20px); */
   }
 
   main {

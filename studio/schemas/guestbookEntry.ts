@@ -21,10 +21,11 @@ export default defineType({
       name: 'message',
       title: 'Bericht',
       type: 'text',
-      validation: (Rule) => Rule.required().max(1000),
+      validation: (Rule) => Rule.required().max(2000),
     }),
   ],
   preview: {
     select: {title: 'name', subtitle: 'message'},
   },
 })
+//

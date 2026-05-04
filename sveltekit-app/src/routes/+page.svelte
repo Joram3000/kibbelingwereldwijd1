@@ -15,3 +15,11 @@
     {/each}
   {/if}
 </section>
+
+<style>
+  section {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+</style>

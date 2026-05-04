@@ -2,6 +2,7 @@ import {serverClient, writeClient} from '$lib/sanity/client.server'
 import {fail} from '@sveltejs/kit'
 import type {Actions, PageServerLoad} from './$types'
 import {guestbookQuery, emojiConfigQuery, DEFAULT_EMOJIS} from '$lib/sanity/queries'
+import {visualLength, MESSAGE_MAX} from '$lib/utils/message'
 
 export const load: PageServerLoad = async () => {
   const [entries, emojiConfig] = await Promise.all([
@@ -9,7 +10,7 @@ export const load: PageServerLoad = async () => {
     serverClient.fetch(emojiConfigQuery),
   ])
 
-  const emojis = emojiConfig?.emojis?.length ? emojiConfig.emojis : DEFAULT_EMOJIS
+  const emojis = [...DEFAULT_EMOJIS, ...(emojiConfig?.emojis ?? [])]
 
   return {entries, emojis}
 }
@@ -36,8 +37,8 @@ export const actions: Actions = {
     if (!message || message.length < 1) {
       return fail(400, {error: 'Bericht is verplicht', name, email, message})
     }
-    if (message.length > 1000) {
-      return fail(400, {error: 'Bericht mag maximaal 1000 tekens zijn', name, email, message})
+    if (visualLength(message) > MESSAGE_MAX) {
+      return fail(400, {error: `Bericht mag maximaal ${MESSAGE_MAX} tekens zijn`, name, email, message})
     }
 
     await writeClient.create({

@@ -1,5 +1,28 @@
 <script lang="ts">
-  const {name, message, date}: {name: string; message: string; date: Date} = $props()
+  import type {EmojiOption} from '$lib/sanity/queries'
+
+  const {name, message, date, emojis = []}: {
+    name: string
+    message: string
+    date: Date
+    emojis?: EmojiOption[]
+  } = $props()
+
+  function renderMessage(text: string): string {
+    const imageEmojis = emojis.filter(e => e.imageUrl)
+    let escaped = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+    for (const {label, imageUrl} of imageEmojis) {
+      const token = `〔${label}〕`
+      escaped = escaped.replaceAll(
+        token,
+        `<img src="${imageUrl}" alt="${label}" class="inline-emoji" />`
+      )
+    }
+    return escaped
+  }
 </script>
 
 <article class="entry">
@@ -13,7 +36,7 @@
       })}
     </time>
   </header>
-  <p class="entry__message">{message}</p>
+  <p class="entry__message">{@html renderMessage(message)}</p>
 </article>
 
 <style>
@@ -47,5 +70,13 @@
     margin: 0;
     line-height: 1.6;
     white-space: pre-wrap;
+  }
+
+  .entry__message :global(.inline-emoji) {
+    width: 1.4em;
+    height: 1.4em;
+    object-fit: contain;
+    vertical-align: middle;
+    display: inline;
   }
 </style>
