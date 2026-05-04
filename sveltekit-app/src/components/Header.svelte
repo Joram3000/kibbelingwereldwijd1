@@ -5,6 +5,8 @@
   <a class="header__title" href="/">Smikkeling wereldwijd</a>
   <nav class="header__nav">
     <a href="/gastenboek">Gastenboek</a>
+    <a href="/agenda">Agenda</a>
+    <a href="/grabbeltom">Grabbeltom</a>
   </nav>
 </header>
 

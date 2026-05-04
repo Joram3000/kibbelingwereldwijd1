@@ -29,6 +29,14 @@ export default defineConfig({
                   .defaultOrdering([{field: '_createdAt', direction: 'desc'}]),
               ),
             S.listItem()
+              .title('Agenda')
+              .schemaType('agendaItem')
+              .child(
+                S.documentTypeList('agendaItem')
+                  .title('Agenda items')
+                  .defaultOrdering([{field: 'date', direction: 'asc'}]),
+              ),
+            S.listItem()
               .title('Emoji configuratie')
               .schemaType('emojiConfig')
               .child(

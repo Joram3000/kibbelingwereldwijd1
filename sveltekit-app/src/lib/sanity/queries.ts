@@ -39,6 +39,30 @@ export interface EmojiOption {
   label: string
 }
 
+export const agendaQuery = groq`*[_type == "agendaItem" && dateTime(date) >= dateTime(now())] | order(date asc) {
+  _id,
+  title,
+  date,
+  endDate,
+  location,
+  description,
+  image,
+  link,
+  linkLabel
+}`
+
+export interface AgendaItem {
+  _id: string
+  title: string
+  date: string
+  endDate?: string
+  location?: string
+  description?: string
+  image?: import('@sanity/types').Image
+  link?: string
+  linkLabel?: string
+}
+
 export const DEFAULT_EMOJIS: EmojiOption[] = [
   {emoji: '😄', label: 'Blij'},
   {emoji: '❤️', label: 'Hart'},

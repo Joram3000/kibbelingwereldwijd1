@@ -7,6 +7,7 @@ import {vimeo} from './objects/vimeo'
 import {imageGallery} from './objects/imageGallery'
 import guestbookEntry from './guestbookEntry'
 import emojiConfig from './emojiConfig'
+import agendaItem from './agendaItem'
 
 export const schemaTypes = [
   post,
@@ -18,4 +19,5 @@ export const schemaTypes = [
   imageGallery,
   guestbookEntry,
   emojiConfig,
+  agendaItem,
 ]

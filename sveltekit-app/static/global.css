@@ -53,6 +53,8 @@
 
 html {
   background-color: transparent;
+  background-image: url('/logo.webp');
+  background-repeat: repeat;
   font-family: var(--font-family-sans), var(--font-family-serif), sans-serif;
   -webkit-text-size-adjust: 100%;
   -moz-text-size-adjust: 100%;
