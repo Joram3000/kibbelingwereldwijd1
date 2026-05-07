@@ -19,6 +19,7 @@
     "embla-carousel-svelte": "^8.6.0",
     "groq": "^5.7.0",
     "lucide-svelte": "^1.0.1",
+    "partysocket": "^1.1.18",
     "sanity-image": "^1.1.0"
   },
   "devDependencies": {

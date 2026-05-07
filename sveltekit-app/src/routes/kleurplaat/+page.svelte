@@ -1,14 +1,12 @@
 <script lang="ts">
   import PaintCanvas from '$lib/components/PaintCanvas.svelte'
 
-  // Kleurplaten — PNG's met transparante achtergrond (zwarte lijnen)
-  // Plaatjes komen uit /static/kleurplaten/
   const sheets = [
     {id: 'kibbeling', label: 'Bakje Kibbeling', src: '/kleurplaten/kibbeling.png'},
     {id: 'domtoren', label: 'Domtoren', src: '/kleurplaten/domtoren.png'},
   ]
 
-  let activeSheet = sheets[0].src
+  let activeSheet = sheets[0]
 </script>
 
 <svelte:head>
@@ -23,15 +21,15 @@
     {#each sheets as sheet}
       <button
         class="sheet-btn"
-        class:active={activeSheet === sheet.src}
-        on:click={() => (activeSheet = sheet.src)}
+        class:active={activeSheet.id === sheet.id}
+        on:click={() => (activeSheet = sheet)}
       >
         {sheet.label}
       </button>
     {/each}
   </div>
 
-  <PaintCanvas coloringSheetSrc={activeSheet} />
+  <PaintCanvas coloringSheetSrc={activeSheet.src} roomId={activeSheet.id} />
 </main>
 
 <style>

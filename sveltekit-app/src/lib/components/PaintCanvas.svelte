@@ -1,7 +1,9 @@
 <script lang="ts">
-  import {onMount} from 'svelte'
+  import {onMount, onDestroy} from 'svelte'
+  import PartySocket from 'partysocket'
 
   export let coloringSheetSrc: string | null = null
+  export let roomId: string = 'default'
 
   // --- State ---
   let colorCanvas: HTMLCanvasElement
@@ -13,10 +15,10 @@
 
   type Tool = 'brush' | 'eraser'
   let activeTool: Tool = 'brush'
-  let brushColor = '#f5c842' // Kibbelinggeel
+  let brushColor = '#f5c842'
   let brushSize = 18
+  let connectedCount = 0
 
-  // Undo/redo history of the color layer
   let history: ImageData[] = []
   let historyIndex = -1
   const MAX_HISTORY = 30
@@ -24,30 +26,69 @@
   const CANVAS_W = 800
   const CANVAS_H = 600
 
-  // Preset colors
   const palette = [
-    '#f5c842',
-    '#e8521a',
-    '#d42b2b',
-    '#e87c1a',
-    '#2b8a3e',
-    '#1971c2',
-    '#7048e8',
-    '#f06595',
-    '#ffffff',
-    '#c8c8c8',
-    '#7a5230',
-    '#000000',
+    '#f5c842', '#e8521a', '#d42b2b', '#e87c1a',
+    '#2b8a3e', '#1971c2', '#7048e8', '#f06595',
+    '#ffffff', '#c8c8c8', '#7a5230', '#000000',
   ]
 
-  // --- Init ---
+  // --- PartyKit ---
+  let socket: PartySocket
+
+  const PARTYKIT_HOST = import.meta.env.VITE_PARTYKIT_HOST ?? 'localhost:1999'
+
   onMount(() => {
     colorCtx = colorCanvas.getContext('2d', {willReadFrequently: true})!
-
     colorCtx.fillStyle = '#ffffff'
     colorCtx.fillRect(0, 0, CANVAS_W, CANVAS_H)
     saveSnapshot()
+
+    socket = new PartySocket({
+      host: PARTYKIT_HOST,
+      room: roomId,
+    })
+
+    socket.addEventListener('message', (e) => {
+      const msg = JSON.parse(e.data)
+
+      if (msg.type === 'history') {
+        // Replay alle streken van de server bij aansluiten
+        for (const stroke of msg.strokes) applyRemote(stroke)
+        saveSnapshot()
+        return
+      }
+
+      if (msg.type === 'connections') {
+        connectedCount = msg.count
+        return
+      }
+
+      applyRemote(msg)
+    })
   })
+
+  onDestroy(() => socket?.close())
+
+  function send(event: object) {
+    if (socket?.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify(event))
+    }
+  }
+
+  function applyRemote(event: any) {
+    if (event.type === 'clear') {
+      colorCtx.fillStyle = '#ffffff'
+      colorCtx.fillRect(0, 0, CANVAS_W, CANVAS_H)
+      return
+    }
+    if (event.type === 'dot') {
+      remoteDot(event.x, event.y, event.color, event.size, event.tool)
+      return
+    }
+    if (event.type === 'stroke') {
+      remoteStroke(event.x1, event.y1, event.x2, event.y2, event.color, event.size, event.tool)
+    }
+  }
 
   // --- Snapshot helpers ---
   function saveSnapshot() {
@@ -83,14 +124,15 @@
     colorCanvas.setPointerCapture(e.pointerId)
     isDrawing = true
     ;[lastX, lastY] = getPos(e)
-    // Draw a dot on click
     drawDot(lastX, lastY)
+    send({type: 'dot', x: lastX, y: lastY, color: brushColor, size: brushSize, tool: activeTool})
   }
 
   function draw(e: PointerEvent) {
     if (!isDrawing) return
     const [x, y] = getPos(e)
     applyStroke(lastX, lastY, x, y)
+    send({type: 'stroke', x1: lastX, y1: lastY, x2: x, y2: y, color: brushColor, size: brushSize, tool: activeTool})
     ;[lastX, lastY] = [x, y]
   }
 
@@ -107,12 +149,30 @@
     colorCtx.fill()
   }
 
+  function remoteDot(x: number, y: number, color: string, size: number, tool: string) {
+    colorCtx.beginPath()
+    colorCtx.arc(x, y, size / 2, 0, Math.PI * 2)
+    colorCtx.fillStyle = tool === 'eraser' ? '#ffffff' : color
+    colorCtx.fill()
+  }
+
   function applyStroke(x1: number, y1: number, x2: number, y2: number) {
     colorCtx.beginPath()
     colorCtx.moveTo(x1, y1)
     colorCtx.lineTo(x2, y2)
     colorCtx.strokeStyle = activeTool === 'eraser' ? '#ffffff' : brushColor
     colorCtx.lineWidth = brushSize
+    colorCtx.lineCap = 'round'
+    colorCtx.lineJoin = 'round'
+    colorCtx.stroke()
+  }
+
+  function remoteStroke(x1: number, y1: number, x2: number, y2: number, color: string, size: number, tool: string) {
+    colorCtx.beginPath()
+    colorCtx.moveTo(x1, y1)
+    colorCtx.lineTo(x2, y2)
+    colorCtx.strokeStyle = tool === 'eraser' ? '#ffffff' : color
+    colorCtx.lineWidth = size
     colorCtx.lineCap = 'round'
     colorCtx.lineJoin = 'round'
     colorCtx.stroke()
@@ -135,13 +195,10 @@
     if (coloringSheetSrc) {
       const img = new Image()
       img.onload = () => {
-        // 1. witte achtergrond
         ctx.fillStyle = '#ffffff'
         ctx.fillRect(0, 0, CANVAS_W, CANVAS_H)
-        // 2. kleurlaag met multiply zodat wit wegvalt
         ctx.globalCompositeOperation = 'multiply'
         ctx.drawImage(colorCanvas, 0, 0)
-        // 3. kleurplaat-lijnen eroverheen (ook multiply, zwart blijft zwart)
         ctx.drawImage(img, 0, 0, CANVAS_W, CANVAS_H)
         ctx.globalCompositeOperation = 'source-over'
         doExport()
@@ -157,6 +214,7 @@
     colorCtx.fillStyle = '#ffffff'
     colorCtx.fillRect(0, 0, CANVAS_W, CANVAS_H)
     saveSnapshot()
+    send({type: 'clear'})
   }
 
   $: canUndo = historyIndex > 0
@@ -164,41 +222,17 @@
 </script>
 
 <div class="paint-app">
-  <!-- Toolbar -->
   <div class="toolbar">
     <div class="tool-group">
-      <button
-        class="tool-btn"
-        class:active={activeTool === 'brush'}
-        on:click={() => (activeTool = 'brush')}
-        title="Kwast"
-      >
+      <button class="tool-btn" class:active={activeTool === 'brush'} on:click={() => (activeTool = 'brush')} title="Kwast">
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <path
-            d="M3 17c2-2 4-3 6-4l5-9a1.5 1.5 0 00-2-2L3 7c-1 2-2 4-4 6"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-          />
+          <path d="M3 17c2-2 4-3 6-4l5-9a1.5 1.5 0 00-2-2L3 7c-1 2-2 4-4 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
           <circle cx="3.5" cy="16.5" r="2" fill="currentColor" />
         </svg>
       </button>
-      <button
-        class="tool-btn"
-        class:active={activeTool === 'eraser'}
-        on:click={() => (activeTool = 'eraser')}
-        title="Gum"
-      >
+      <button class="tool-btn" class:active={activeTool === 'eraser'} on:click={() => (activeTool = 'eraser')} title="Gum">
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <rect
-            x="2"
-            y="9"
-            width="16"
-            height="8"
-            rx="1.5"
-            stroke="currentColor"
-            stroke-width="1.5"
-          />
+          <rect x="2" y="9" width="16" height="8" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
           <path d="M6 9V5a4 4 0 018 0v4" stroke="currentColor" stroke-width="1.5" />
         </svg>
       </button>
@@ -218,40 +252,25 @@
           class="color-swatch"
           class:selected={brushColor === color && activeTool === 'brush'}
           style="background:{color}"
-          on:click={() => {
-            brushColor = color
-            activeTool = 'brush'
-          }}
+          on:click={() => { brushColor = color; activeTool = 'brush' }}
           title={color}
         />
       {/each}
-      <input
-        type="color"
-        bind:value={brushColor}
-        on:input={() => (activeTool = 'brush')}
-        title="Eigen kleur"
-        class="color-picker"
-      />
+      <input type="color" bind:value={brushColor} on:input={() => (activeTool = 'brush')} title="Eigen kleur" class="color-picker" />
     </div>
 
     <div class="tool-group">
-      <button class="action-btn" on:click={undo} disabled={!canUndo} title="Ongedaan maken">
-        Undo
-      </button>
-      <button class="action-btn" on:click={redo} disabled={!canRedo} title="Opnieuw"> Redo </button>
-      <button class="action-btn danger" on:click={clearCanvas} title="Alles wissen"> Reset </button>
-      <button class="action-btn primary" on:click={download} title="Opslaan als PNG">
-        Opslaan
-      </button>
+      <button class="action-btn" on:click={undo} disabled={!canUndo}>Undo</button>
+      <button class="action-btn" on:click={redo} disabled={!canRedo}>Redo</button>
+      <button class="action-btn danger" on:click={clearCanvas}>Reset</button>
+      <button class="action-btn primary" on:click={download}>Opslaan</button>
     </div>
   </div>
 
   <div class="canvas-wrapper">
-    <!-- Kleurplaat onderop als achtergrond -->
     {#if coloringSheetSrc}
       <img class="sheet-img" src={coloringSheetSrc} alt="" aria-hidden="true" />
     {/if}
-    <!-- Tekencanvas eroverheen; mix-blend-mode:multiply maakt wit transparant -->
     <canvas
       bind:this={colorCanvas}
       width={CANVAS_W}
@@ -392,13 +411,8 @@
     cursor: default;
   }
 
-  .action-btn.danger {
-    color: #c00;
-  }
-
-  .action-btn.primary {
-    font-weight: bold;
-  }
+  .action-btn.danger { color: #c00; }
+  .action-btn.primary { font-weight: bold; }
 
   .canvas-wrapper {
     position: relative;
