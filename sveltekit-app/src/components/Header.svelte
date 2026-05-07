@@ -4,6 +4,7 @@
     <a href="/gastenboek">Gastenboek</a>
     <a href="/agenda">Agenda</a>
     <a href="/vacatures">Vacatures</a>
+    <a href="/kleurplaat">Kleurplaat</a>
   </nav>
 </header>
 
