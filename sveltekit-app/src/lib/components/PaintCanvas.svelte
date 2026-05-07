@@ -27,9 +27,18 @@
   const CANVAS_H = 600
 
   const palette = [
-    '#f5c842', '#e8521a', '#d42b2b', '#e87c1a',
-    '#2b8a3e', '#1971c2', '#7048e8', '#f06595',
-    '#ffffff', '#c8c8c8', '#7a5230', '#000000',
+    '#f5c842',
+    '#e8521a',
+    '#d42b2b',
+    '#e87c1a',
+    '#2b8a3e',
+    '#1971c2',
+    '#7048e8',
+    '#f06595',
+    '#ffffff',
+    '#c8c8c8',
+    '#7a5230',
+    '#000000',
   ]
 
   // --- PartyKit ---
@@ -132,7 +141,16 @@
     if (!isDrawing) return
     const [x, y] = getPos(e)
     applyStroke(lastX, lastY, x, y)
-    send({type: 'stroke', x1: lastX, y1: lastY, x2: x, y2: y, color: brushColor, size: brushSize, tool: activeTool})
+    send({
+      type: 'stroke',
+      x1: lastX,
+      y1: lastY,
+      x2: x,
+      y2: y,
+      color: brushColor,
+      size: brushSize,
+      tool: activeTool,
+    })
     ;[lastX, lastY] = [x, y]
   }
 
@@ -167,7 +185,15 @@
     colorCtx.stroke()
   }
 
-  function remoteStroke(x1: number, y1: number, x2: number, y2: number, color: string, size: number, tool: string) {
+  function remoteStroke(
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    color: string,
+    size: number,
+    tool: string,
+  ) {
     colorCtx.beginPath()
     colorCtx.moveTo(x1, y1)
     colorCtx.lineTo(x2, y2)
@@ -224,15 +250,38 @@
 <div class="paint-app">
   <div class="toolbar">
     <div class="tool-group">
-      <button class="tool-btn" class:active={activeTool === 'brush'} on:click={() => (activeTool = 'brush')} title="Kwast">
+      <button
+        class="tool-btn"
+        class:active={activeTool === 'brush'}
+        on:click={() => (activeTool = 'brush')}
+        title="Kwast"
+      >
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <path d="M3 17c2-2 4-3 6-4l5-9a1.5 1.5 0 00-2-2L3 7c-1 2-2 4-4 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <path
+            d="M3 17c2-2 4-3 6-4l5-9a1.5 1.5 0 00-2-2L3 7c-1 2-2 4-4 6"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+          />
           <circle cx="3.5" cy="16.5" r="2" fill="currentColor" />
         </svg>
       </button>
-      <button class="tool-btn" class:active={activeTool === 'eraser'} on:click={() => (activeTool = 'eraser')} title="Gum">
+      <button
+        class="tool-btn"
+        class:active={activeTool === 'eraser'}
+        on:click={() => (activeTool = 'eraser')}
+        title="Gum"
+      >
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <rect x="2" y="9" width="16" height="8" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+          <rect
+            x="2"
+            y="9"
+            width="16"
+            height="8"
+            rx="1.5"
+            stroke="currentColor"
+            stroke-width="1.5"
+          />
           <path d="M6 9V5a4 4 0 018 0v4" stroke="currentColor" stroke-width="1.5" />
         </svg>
       </button>
@@ -252,17 +301,26 @@
           class="color-swatch"
           class:selected={brushColor === color && activeTool === 'brush'}
           style="background:{color}"
-          on:click={() => { brushColor = color; activeTool = 'brush' }}
+          on:click={() => {
+            brushColor = color
+            activeTool = 'brush'
+          }}
           title={color}
-        />
+        ></button>
       {/each}
-      <input type="color" bind:value={brushColor} on:input={() => (activeTool = 'brush')} title="Eigen kleur" class="color-picker" />
+      <input
+        type="color"
+        bind:value={brushColor}
+        on:input={() => (activeTool = 'brush')}
+        title="Eigen kleur"
+        class="color-picker"
+      />
     </div>
 
     <div class="tool-group">
       <button class="action-btn" on:click={undo} disabled={!canUndo}>Undo</button>
       <button class="action-btn" on:click={redo} disabled={!canRedo}>Redo</button>
-      <button class="action-btn danger" on:click={clearCanvas}>Reset</button>
+      <!-- <button class="action-btn danger" on:click={clearCanvas}>Reset</button> -->
       <button class="action-btn primary" on:click={download}>Opslaan</button>
     </div>
   </div>
@@ -281,7 +339,7 @@
       on:pointermove={draw}
       on:pointerup={endDraw}
       on:pointerleave={endDraw}
-    />
+    ></canvas>
   </div>
 </div>
 
@@ -411,8 +469,12 @@
     cursor: default;
   }
 
-  .action-btn.danger { color: #c00; }
-  .action-btn.primary { font-weight: bold; }
+  .action-btn.danger {
+    color: #c00;
+  }
+  .action-btn.primary {
+    font-weight: bold;
+  }
 
   .canvas-wrapper {
     position: relative;

@@ -29,7 +29,9 @@
     {/each}
   </div>
 
-  <PaintCanvas coloringSheetSrc={activeSheet.src} roomId={activeSheet.id} />
+  {#key activeSheet.id}
+    <PaintCanvas coloringSheetSrc={activeSheet.src} roomId={activeSheet.id} />
+  {/key}
 </main>
 
 <style>
