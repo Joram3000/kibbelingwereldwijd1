@@ -1,7 +1,12 @@
 <script lang="ts">
   import type {EmojiOption} from '$lib/sanity/queries'
 
-  const {name, message, date, emojis = []}: {
+  const {
+    name,
+    message,
+    date,
+    emojis = [],
+  }: {
     name: string
     message: string
     date: Date
@@ -9,16 +14,13 @@
   } = $props()
 
   function renderMessage(text: string): string {
-    const imageEmojis = emojis.filter(e => e.imageUrl)
-    let escaped = text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
+    const imageEmojis = emojis.filter((e) => e.imageUrl)
+    let escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     for (const {label, imageUrl} of imageEmojis) {
       const token = `〔${label}〕`
       escaped = escaped.replaceAll(
         token,
-        `<img src="${imageUrl}" alt="${label}" class="inline-emoji" />`
+        `<img src="${imageUrl}" alt="${label}" class="inline-emoji" />`,
       )
     }
     return escaped
@@ -42,10 +44,8 @@
 <style>
   .entry {
     padding: var(--space-3, 1rem);
-    border: 1px solid red;
     border-radius: 8px;
-    backdrop-filter: blur(232px);
-    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(100px);
   }
 
   .entry__header {

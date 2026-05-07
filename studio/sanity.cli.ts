@@ -16,5 +16,5 @@ export default defineCliConfig({
     dataset,
   },
   studioHost: process.env.SANITY_STUDIO_STUDIO_HOST || '',
-  deployment: {autoUpdates: true},
+  deployment: {autoUpdates: true, appId: process.env.SANITY_STUDIO_VERCEL_APP_ID || ''},
 })

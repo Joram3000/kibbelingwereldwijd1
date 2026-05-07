@@ -29,11 +29,13 @@
   }
 </script>
 
-<svelte:window on:click={(e) => {
-  if (pickerOpen && !(e.target as Element).closest('.emoji-area')) {
-    pickerOpen = false
-  }
-}} />
+<svelte:window
+  on:click={(e) => {
+    if (pickerOpen && !(e.target as Element).closest('.emoji-area')) {
+      pickerOpen = false
+    }
+  }}
+/>
 
 <section class="gastenboek">
   <h1>Gastenboek</h1>
@@ -109,13 +111,16 @@
           </button>
           {#if pickerOpen}
             <div class="emoji-picker" role="dialog" aria-label="Kies een emoji">
-              {#each data.emojis as {emoji, label, imageUrl}}
+              {#each data.emojis as { emoji, label, imageUrl }}
                 <button
                   type="button"
                   class="emoji-option"
                   title={label}
                   aria-label={label}
-                  onclick={() => { insertText(imageUrl ? `〔${label}〕` : (emoji ?? label)); pickerOpen = false }}
+                  onclick={() => {
+                    insertText(imageUrl ? `〔${label}〕` : (emoji ?? label))
+                    pickerOpen = false
+                  }}
                 >
                   {#if imageUrl}
                     <img src={imageUrl} alt={label} class="emoji-img" />

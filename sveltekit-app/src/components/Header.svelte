@@ -3,6 +3,7 @@
   <nav class="header__nav">
     <a href="/gastenboek">Gastenboek</a>
     <a href="/agenda">Agenda</a>
+    <a href="/vacatures">Vacatures</a>
   </nav>
 </header>
 
