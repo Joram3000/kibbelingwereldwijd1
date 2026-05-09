@@ -23,6 +23,7 @@
   let historyIndex = -1
   const MAX_HISTORY = 30
   let fallbackTimer: ReturnType<typeof setTimeout>
+  let saveTimer: ReturnType<typeof setTimeout>
   let loading = true
 
   const CANVAS_W = 800
@@ -59,13 +60,24 @@
     socket.addEventListener('message', (e) => {
       const msg = JSON.parse(e.data)
 
-      if (msg.type === 'history') {
-        // Start altijd met wit canvas, speel dan alle opgeslagen streken terug
+      if (msg.type === 'state') {
+        clearTimeout(fallbackTimer)
         colorCtx.fillStyle = '#ffffff'
         colorCtx.fillRect(0, 0, CANVAS_W, CANVAS_H)
-        for (const stroke of msg.strokes) applyRemote(stroke)
-        saveSnapshot()
-        loading = false
+        if (msg.snapshot) {
+          const img = new Image()
+          img.onload = () => {
+            colorCtx.drawImage(img, 0, 0)
+            for (const stroke of msg.strokes) applyRemote(stroke)
+            saveSnapshot()
+            loading = false
+          }
+          img.src = msg.snapshot
+        } else {
+          for (const stroke of msg.strokes) applyRemote(stroke)
+          saveSnapshot()
+          loading = false
+        }
         return
       }
 
@@ -90,6 +102,7 @@
 
   onDestroy(() => {
     clearTimeout(fallbackTimer)
+    clearTimeout(saveTimer)
     socket?.close()
   })
 
@@ -173,6 +186,15 @@
     if (!isDrawing) return
     isDrawing = false
     saveSnapshot()
+    scheduleSave()
+  }
+
+  function scheduleSave() {
+    clearTimeout(saveTimer)
+    saveTimer = setTimeout(() => {
+      const data = colorCanvas.toDataURL('image/jpeg', 0.7)
+      send({type: 'snapshot', data})
+    }, 2000)
   }
 
   function drawDot(x: number, y: number) {
