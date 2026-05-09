@@ -14,8 +14,9 @@
 </svelte:head>
 
 <main>
-  <h1>Kleurplaat</h1>
+  <h1>Community Kleurplaat</h1>
   <p class="intro">Kies een kleurplaat en ga aan de slag met je kwast!</p>
+  <p>Samen kleuren maakt blijdschap.</p>
 
   <div class="sheet-picker">
     {#each sheets as sheet}
@@ -62,19 +63,19 @@
     padding: 6px 14px;
     background: #d4d0c8;
     border: 2px solid transparent;
-    border-top-color: #fff;
+    /* border-top-color: #fff;
     border-left-color: #fff;
     border-bottom-color: #808080;
-    border-right-color: #808080;
+    border-right-color: #808080; */
     cursor: pointer;
     font-size: 13px;
   }
 
   .sheet-btn.active {
-    border-top-color: #808080;
+    /* border-top-color: #808080;
     border-left-color: #808080;
     border-bottom-color: #fff;
-    border-right-color: #fff;
+    border-right-color: #fff; */
     background: #c0bdb5;
     font-weight: bold;
   }

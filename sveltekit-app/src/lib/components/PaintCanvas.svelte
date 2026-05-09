@@ -22,6 +22,8 @@
   let history: ImageData[] = []
   let historyIndex = -1
   const MAX_HISTORY = 30
+  let fallbackTimer: ReturnType<typeof setTimeout>
+  let loading = true
 
   const CANVAS_W = 800
   const CANVAS_H = 600
@@ -48,9 +50,6 @@
 
   onMount(() => {
     colorCtx = colorCanvas.getContext('2d', {willReadFrequently: true})!
-    colorCtx.fillStyle = '#ffffff'
-    colorCtx.fillRect(0, 0, CANVAS_W, CANVAS_H)
-    saveSnapshot()
 
     socket = new PartySocket({
       host: PARTYKIT_HOST,
@@ -61,9 +60,12 @@
       const msg = JSON.parse(e.data)
 
       if (msg.type === 'history') {
-        // Replay alle streken van de server bij aansluiten
+        // Start altijd met wit canvas, speel dan alle opgeslagen streken terug
+        colorCtx.fillStyle = '#ffffff'
+        colorCtx.fillRect(0, 0, CANVAS_W, CANVAS_H)
         for (const stroke of msg.strokes) applyRemote(stroke)
         saveSnapshot()
+        loading = false
         return
       }
 
@@ -74,9 +76,22 @@
 
       applyRemote(msg)
     })
+
+    // Fallback: als de server na 5s nog geen history heeft gestuurd, initialiseer met wit
+    fallbackTimer = setTimeout(() => {
+      if (history.length === 0) {
+        colorCtx.fillStyle = '#ffffff'
+        colorCtx.fillRect(0, 0, CANVAS_W, CANVAS_H)
+        saveSnapshot()
+      }
+      loading = false
+    }, 5000)
   })
 
-  onDestroy(() => socket?.close())
+  onDestroy(() => {
+    clearTimeout(fallbackTimer)
+    socket?.close()
+  })
 
   function send(event: object) {
     if (socket?.readyState === WebSocket.OPEN) {
@@ -236,13 +251,6 @@
     }
   }
 
-  function clearCanvas() {
-    colorCtx.fillStyle = '#ffffff'
-    colorCtx.fillRect(0, 0, CANVAS_W, CANVAS_H)
-    saveSnapshot()
-    send({type: 'clear'})
-  }
-
   $: canUndo = historyIndex > 0
   $: canRedo = historyIndex < history.length - 1
 </script>
@@ -329,6 +337,13 @@
     {#if coloringSheetSrc}
       <img class="sheet-img" src={coloringSheetSrc} alt="" aria-hidden="true" />
     {/if}
+    {#if loading}
+      <div class="loading-overlay">
+        <span class="loading-dot"></span>
+        <span class="loading-dot"></span>
+        <span class="loading-dot"></span>
+      </div>
+    {/if}
     <canvas
       bind:this={colorCanvas}
       width={CANVAS_W}
@@ -359,8 +374,6 @@
     align-items: center;
     gap: 12px;
     background: #d4d0c8;
-    border: 2px solid #ffffff;
-    border-bottom: 2px solid #808080;
     padding: 6px 10px;
     width: 100%;
     box-sizing: border-box;
@@ -371,7 +384,7 @@
     align-items: center;
     gap: 4px;
     padding-right: 12px;
-    border-right: 2px solid #808080;
+    /* border-right: 2px solid #808080; */
   }
 
   .tool-group:last-child {
@@ -385,21 +398,21 @@
     align-items: center;
     justify-content: center;
     background: #d4d0c8;
-    border: 2px solid transparent;
-    border-top-color: #ffffff;
+    border: 2px solid #808080;
+    /* border-top-color: #ffffff;
     border-left-color: #ffffff;
     border-bottom-color: #808080;
-    border-right-color: #808080;
+    border-right-color: #808080; */
     cursor: pointer;
     color: #222;
   }
 
   .tool-btn:active,
   .tool-btn.active {
-    border-top-color: #808080;
+    /* border-top-color: #808080;
     border-left-color: #808080;
     border-bottom-color: #ffffff;
-    border-right-color: #ffffff;
+    border-right-color: #ffffff; */
     background: #c0bdb5;
   }
 
@@ -500,5 +513,32 @@
     height: 100%;
     mix-blend-mode: multiply;
     touch-action: none;
+  }
+
+  .loading-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.85);
+  }
+
+  .loading-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #808080;
+    animation: bounce 1s infinite ease-in-out;
+  }
+
+  .loading-dot:nth-child(2) { animation-delay: 0.15s; }
+  .loading-dot:nth-child(3) { animation-delay: 0.3s; }
+
+  @keyframes bounce {
+    0%, 80%, 100% { transform: scale(0.7); opacity: 0.5; }
+    40% { transform: scale(1); opacity: 1; }
   }
 </style>
