@@ -30,9 +30,11 @@
     {/each}
   </div>
 
-  {#key activeSheet.id}
-    <PaintCanvas coloringSheetSrc={activeSheet.src} roomId={activeSheet.id} />
-  {/key}
+  <div class="canvas-section">
+    {#key activeSheet.id}
+      <PaintCanvas coloringSheetSrc={activeSheet.src} roomId={activeSheet.id} />
+    {/key}
+  </div>
 </main>
 
 <style>
@@ -60,23 +62,27 @@
   }
 
   .sheet-btn {
-    padding: 6px 14px;
+    padding: 8px 16px;
     background: #d4d0c8;
     border: 2px solid transparent;
-    /* border-top-color: #fff;
-    border-left-color: #fff;
-    border-bottom-color: #808080;
-    border-right-color: #808080; */
     cursor: pointer;
-    font-size: 13px;
+    font-size: 14px;
+    touch-action: manipulation;
   }
 
   .sheet-btn.active {
-    /* border-top-color: #808080;
-    border-left-color: #808080;
-    border-bottom-color: #fff;
-    border-right-color: #fff; */
     background: #c0bdb5;
     font-weight: bold;
+  }
+
+  /* Canvas breekt uit de page-padding op mobile */
+  .canvas-section {
+    margin: 0 -1rem;
+  }
+
+  @media (min-width: 700px) {
+    .canvas-section {
+      margin: 0;
+    }
   }
 </style>

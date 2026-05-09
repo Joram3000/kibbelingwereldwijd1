@@ -5,29 +5,61 @@
   export let coloringSheetSrc: string | null = null
   export let roomId: string = 'default'
 
-  // --- State ---
+  // --- Canvas ---
   let colorCanvas: HTMLCanvasElement
   let colorCtx: CanvasRenderingContext2D
 
+  // --- Drawing state ---
   let isDrawing = false
   let lastX = 0
   let lastY = 0
+  let currentStrokePts: Array<[number, number]> = []
+  let hasStrokeStart = false
+  let strokeStartCanvas: OffscreenCanvas
+  let strokeStartCtx: OffscreenCanvasRenderingContext2D
 
+  // --- Dwell ---
+  let dwellTimer: ReturnType<typeof setInterval> | null = null
+  let dwellX = 0
+  let dwellY = 0
+  const DWELL_MS = 50
+  const DWELL_ALPHA = 0.04
+
+  // --- rAF throttle ---
+  let rafId: number | null = null
+
+  // --- Tools ---
   type Tool = 'brush' | 'eraser'
   let activeTool: Tool = 'brush'
   let brushColor = '#f5c842'
   let brushSize = 18
-  let connectedCount = 0
+  let brushOpacity = 0.3
 
-  let history: ImageData[] = []
+  const blendModes = [
+    {value: 'source-over', label: 'Normal'},
+    {value: 'multiply', label: 'Multiply'},
+    {value: 'darken', label: 'Darken'},
+    {value: 'color', label: 'Kleur'},
+    {value: 'overlay', label: 'Overlay'},
+    {value: 'color-burn', label: 'Burn'},
+  ]
+  let blendMode = 'multiply'
+
+  // --- History (OffscreenCanvas — GPU blit, no CPU pixel copy) ---
+  let history: OffscreenCanvas[] = []
   let historyIndex = -1
   const MAX_HISTORY = 30
+
+  // --- Timers / loading ---
   let fallbackTimer: ReturnType<typeof setTimeout>
   let saveTimer: ReturnType<typeof setTimeout>
   let loading = true
 
   const CANVAS_W = 800
   const CANVAS_H = 600
+
+  // localStorage key per room — second line of defense if PartyKit is slow/down
+  const LS_KEY = `kleurplaat-backup-${roomId}`
 
   const palette = [
     '#f5c842',
@@ -46,16 +78,16 @@
 
   // --- PartyKit ---
   let socket: PartySocket
-
   const PARTYKIT_HOST = import.meta.env.VITE_PARTYKIT_HOST ?? 'localhost:1999'
 
   onMount(() => {
-    colorCtx = colorCanvas.getContext('2d', {willReadFrequently: true})!
+    colorCtx = colorCanvas.getContext('2d')!
 
-    socket = new PartySocket({
-      host: PARTYKIT_HOST,
-      room: roomId,
-    })
+    // Reusable offscreen canvas for stroke-start (GPU → GPU blit, no getImageData)
+    strokeStartCanvas = new OffscreenCanvas(CANVAS_W, CANVAS_H)
+    strokeStartCtx = strokeStartCanvas.getContext('2d')!
+
+    socket = new PartySocket({host: PARTYKIT_HOST, room: roomId})
 
     socket.addEventListener('message', (e) => {
       const msg = JSON.parse(e.data)
@@ -64,45 +96,57 @@
         clearTimeout(fallbackTimer)
         colorCtx.fillStyle = '#ffffff'
         colorCtx.fillRect(0, 0, CANVAS_W, CANVAS_H)
+
         if (msg.snapshot) {
           const img = new Image()
           img.onload = () => {
             colorCtx.drawImage(img, 0, 0)
-            for (const stroke of msg.strokes) applyRemote(stroke)
+            for (const stroke of msg.strokes ?? []) applyRemote(stroke)
             saveSnapshot()
+            saveToLocalStorage()
             loading = false
           }
           img.src = msg.snapshot
         } else {
-          for (const stroke of msg.strokes) applyRemote(stroke)
+          for (const stroke of msg.strokes ?? []) applyRemote(stroke)
           saveSnapshot()
           loading = false
         }
         return
       }
 
-      if (msg.type === 'connections') {
-        connectedCount = msg.count
-        return
-      }
-
       applyRemote(msg)
     })
 
-    // Fallback: als de server na 5s nog geen history heeft gestuurd, initialiseer met wit
+    // Fallback: server silent after 5s → restore from localStorage or init white
     fallbackTimer = setTimeout(() => {
       if (history.length === 0) {
-        colorCtx.fillStyle = '#ffffff'
-        colorCtx.fillRect(0, 0, CANVAS_W, CANVAS_H)
-        saveSnapshot()
+        const cached = localStorage.getItem(LS_KEY)
+        if (cached) {
+          const img = new Image()
+          img.onload = () => {
+            colorCtx.drawImage(img, 0, 0)
+            saveSnapshot()
+            loading = false
+          }
+          img.src = cached
+        } else {
+          colorCtx.fillStyle = '#ffffff'
+          colorCtx.fillRect(0, 0, CANVAS_W, CANVAS_H)
+          saveSnapshot()
+          loading = false
+        }
+      } else {
+        loading = false
       }
-      loading = false
     }, 5000)
   })
 
   onDestroy(() => {
     clearTimeout(fallbackTimer)
     clearTimeout(saveTimer)
+    stopDwell()
+    if (rafId !== null) cancelAnimationFrame(rafId)
     socket?.close()
   })
 
@@ -112,24 +156,64 @@
     }
   }
 
+  // --- Unified draw primitive ---
+  // local=true applies the selected blendMode via globalCompositeOperation
+  // remote strokes always use source-over (we don't know the sender's blend mode)
+  type DrawCmd =
+    | {
+        type: 'dot'
+        x: number
+        y: number
+        color: string
+        size: number
+        tool: string
+        opacity: number
+      }
+    | {
+        type: 'stroke'
+        x1: number
+        y1: number
+        x2: number
+        y2: number
+        color: string
+        size: number
+        tool: string
+        opacity: number
+      }
+
+  function applyMark(cmd: DrawCmd, local = false) {
+    const isEraser = cmd.tool === 'eraser'
+    colorCtx.globalCompositeOperation =
+      !isEraser && local ? (blendMode as GlobalCompositeOperation) : 'source-over'
+    colorCtx.globalAlpha = isEraser ? 1 : cmd.opacity
+    colorCtx.beginPath()
+    if (cmd.type === 'dot') {
+      colorCtx.arc(cmd.x, cmd.y, cmd.size / 2, 0, Math.PI * 2)
+      colorCtx.fillStyle = isEraser ? '#ffffff' : cmd.color
+      colorCtx.fill()
+    } else {
+      colorCtx.moveTo(cmd.x1, cmd.y1)
+      colorCtx.lineTo(cmd.x2, cmd.y2)
+      colorCtx.strokeStyle = isEraser ? '#ffffff' : cmd.color
+      colorCtx.lineWidth = cmd.size
+      colorCtx.lineCap = 'round'
+      colorCtx.lineJoin = 'round'
+      colorCtx.stroke()
+    }
+    colorCtx.globalAlpha = 1
+    colorCtx.globalCompositeOperation = 'source-over'
+  }
+
   function applyRemote(event: any) {
-    if (event.type === 'clear') {
-      colorCtx.fillStyle = '#ffffff'
-      colorCtx.fillRect(0, 0, CANVAS_W, CANVAS_H)
-      return
-    }
-    if (event.type === 'dot') {
-      remoteDot(event.x, event.y, event.color, event.size, event.tool)
-      return
-    }
-    if (event.type === 'stroke') {
-      remoteStroke(event.x1, event.y1, event.x2, event.y2, event.color, event.size, event.tool)
+    if (event.type === 'dot' || event.type === 'stroke') {
+      applyMark({...event, opacity: event.opacity ?? 1}, false)
     }
   }
 
-  // --- Snapshot helpers ---
+  // --- History (GPU OffscreenCanvas — drawImage stays on GPU, no CPU pixel transfer) ---
   function saveSnapshot() {
-    const snap = colorCtx.getImageData(0, 0, CANVAS_W, CANVAS_H)
+    const snap = new OffscreenCanvas(CANVAS_W, CANVAS_H)
+    snap.getContext('2d')!.drawImage(colorCanvas, 0, 0)
     history = history.slice(0, historyIndex + 1)
     history.push(snap)
     if (history.length > MAX_HISTORY) history.shift()
@@ -139,16 +223,16 @@
   function undo() {
     if (historyIndex <= 0) return
     historyIndex--
-    colorCtx.putImageData(history[historyIndex], 0, 0)
+    colorCtx.drawImage(history[historyIndex], 0, 0)
   }
 
   function redo() {
     if (historyIndex >= history.length - 1) return
     historyIndex++
-    colorCtx.putImageData(history[historyIndex], 0, 0)
+    colorCtx.drawImage(history[historyIndex], 0, 0)
   }
 
-  // --- Pointer helpers ---
+  // --- Pos: always live rect so scroll doesn't offset strokes ---
   function getPos(e: PointerEvent): [number, number] {
     const rect = colorCanvas.getBoundingClientRect()
     const scaleX = CANVAS_W / rect.width
@@ -156,37 +240,202 @@
     return [(e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY]
   }
 
+  // --- rAF-throttled render (decouple pointermove from paint) ---
+  function scheduleRender() {
+    if (rafId !== null) return
+    rafId = requestAnimationFrame(() => {
+      rafId = null
+      redrawBrushStroke()
+    })
+  }
+
   // --- Drawing ---
   function startDraw(e: PointerEvent) {
     colorCanvas.setPointerCapture(e.pointerId)
     isDrawing = true
     ;[lastX, lastY] = getPos(e)
-    drawDot(lastX, lastY)
-    send({type: 'dot', x: lastX, y: lastY, color: brushColor, size: brushSize, tool: activeTool})
+
+    if (activeTool === 'brush') {
+      strokeStartCtx.drawImage(colorCanvas, 0, 0) // GPU copy, replaces getImageData
+      hasStrokeStart = true
+      currentStrokePts = [[lastX, lastY]]
+      scheduleRender()
+      startDwell()
+    } else {
+      applyMark(
+        {
+          type: 'dot',
+          x: lastX,
+          y: lastY,
+          color: brushColor,
+          size: brushSize,
+          tool: activeTool,
+          opacity: brushOpacity,
+        },
+        true,
+      )
+    }
+
+    send({
+      type: 'dot',
+      x: lastX,
+      y: lastY,
+      color: brushColor,
+      size: brushSize,
+      tool: activeTool,
+      opacity: brushOpacity,
+    })
   }
 
   function draw(e: PointerEvent) {
     if (!isDrawing) return
-    const [x, y] = getPos(e)
-    applyStroke(lastX, lastY, x, y)
-    send({
-      type: 'stroke',
-      x1: lastX,
-      y1: lastY,
-      x2: x,
-      y2: y,
-      color: brushColor,
-      size: brushSize,
-      tool: activeTool,
-    })
-    ;[lastX, lastY] = [x, y]
+
+    // getCoalescedEvents gives higher-res stroke path between frames
+    const coalescedEvents: PointerEvent[] = e.getCoalescedEvents?.() ?? []
+    const eventList: PointerEvent[] = coalescedEvents.length > 0 ? coalescedEvents : [e]
+
+    if (activeTool === 'brush') {
+      for (const ce of eventList) {
+        currentStrokePts.push(getPos(ce))
+      }
+      const [newX, newY] = getPos(eventList[eventList.length - 1])
+      send({
+        type: 'stroke',
+        x1: lastX,
+        y1: lastY,
+        x2: newX,
+        y2: newY,
+        color: brushColor,
+        size: brushSize,
+        tool: activeTool,
+        opacity: brushOpacity,
+      })
+      ;[lastX, lastY] = [newX, newY]
+      scheduleRender()
+    } else {
+      let prevX = lastX
+      let prevY = lastY
+      for (const ce of eventList) {
+        const [x, y] = getPos(ce)
+        applyMark(
+          {
+            type: 'stroke',
+            x1: prevX,
+            y1: prevY,
+            x2: x,
+            y2: y,
+            color: brushColor,
+            size: brushSize,
+            tool: activeTool,
+            opacity: brushOpacity,
+          },
+          true,
+        )
+        send({
+          type: 'stroke',
+          x1: prevX,
+          y1: prevY,
+          x2: x,
+          y2: y,
+          color: brushColor,
+          size: brushSize,
+          tool: activeTool,
+          opacity: brushOpacity,
+        })
+        ;[prevX, prevY] = [x, y]
+      }
+      ;[lastX, lastY] = [prevX, prevY]
+    }
   }
 
   function endDraw() {
     if (!isDrawing) return
     isDrawing = false
+    stopDwell()
+    hasStrokeStart = false
+    currentStrokePts = []
     saveSnapshot()
     scheduleSave()
+  }
+
+  // Redraws the entire current stroke as a single smooth Bézier path — no joints, no opacity dots
+  function redrawBrushStroke() {
+    if (!hasStrokeStart) return
+    colorCtx.drawImage(strokeStartCanvas, 0, 0)
+
+    colorCtx.globalCompositeOperation = blendMode as GlobalCompositeOperation
+    colorCtx.globalAlpha = brushOpacity
+    colorCtx.strokeStyle = brushColor
+    colorCtx.lineWidth = brushSize
+    colorCtx.lineCap = 'round'
+    colorCtx.lineJoin = 'round'
+    colorCtx.beginPath()
+
+    const pts = currentStrokePts
+    if (pts.length === 1) {
+      const [x, y] = pts[0]
+      colorCtx.fillStyle = brushColor
+      colorCtx.arc(x, y, brushSize / 2, 0, Math.PI * 2)
+      colorCtx.fill()
+    } else if (pts.length === 2) {
+      colorCtx.moveTo(pts[0][0], pts[0][1])
+      colorCtx.lineTo(pts[1][0], pts[1][1])
+      colorCtx.stroke()
+    } else {
+      colorCtx.moveTo(pts[0][0], pts[0][1])
+      for (let i = 0; i < pts.length - 1; i++) {
+        const midX = (pts[i][0] + pts[i + 1][0]) / 2
+        const midY = (pts[i][1] + pts[i + 1][1]) / 2
+        colorCtx.quadraticCurveTo(pts[i][0], pts[i][1], midX, midY)
+      }
+      colorCtx.lineTo(pts[pts.length - 1][0], pts[pts.length - 1][1])
+      colorCtx.stroke()
+    }
+
+    colorCtx.globalAlpha = 1
+    colorCtx.globalCompositeOperation = 'source-over'
+  }
+
+  // --- Dwell (kleur opbouwen als je stilstaat) ---
+  function startDwell() {
+    stopDwell()
+    dwellX = lastX
+    dwellY = lastY
+    dwellTimer = setInterval(() => {
+      if (!isDrawing || activeTool !== 'brush') return
+      if (Math.abs(lastX - dwellX) > 3 || Math.abs(lastY - dwellY) > 3) {
+        dwellX = lastX
+        dwellY = lastY
+        return
+      }
+      colorCtx.globalCompositeOperation = blendMode as GlobalCompositeOperation
+      colorCtx.globalAlpha = DWELL_ALPHA
+      colorCtx.beginPath()
+      colorCtx.arc(lastX, lastY, brushSize / 2, 0, Math.PI * 2)
+      colorCtx.fillStyle = brushColor
+      colorCtx.fill()
+      colorCtx.globalAlpha = 1
+      colorCtx.globalCompositeOperation = 'source-over'
+      // Bake dwell into stroke-start so subsequent movement preserves it
+      strokeStartCtx.drawImage(colorCanvas, 0, 0)
+      currentStrokePts = [[lastX, lastY]]
+    }, DWELL_MS)
+  }
+
+  function stopDwell() {
+    if (dwellTimer !== null) {
+      clearInterval(dwellTimer)
+      dwellTimer = null
+    }
+  }
+
+  // --- Persistence ---
+  function saveToLocalStorage() {
+    try {
+      localStorage.setItem(LS_KEY, colorCanvas.toDataURL('image/jpeg', 0.6))
+    } catch {
+      // localStorage full — ignore
+    }
   }
 
   function scheduleSave() {
@@ -194,51 +443,8 @@
     saveTimer = setTimeout(() => {
       const data = colorCanvas.toDataURL('image/jpeg', 0.7)
       send({type: 'snapshot', data})
+      saveToLocalStorage()
     }, 2000)
-  }
-
-  function drawDot(x: number, y: number) {
-    colorCtx.beginPath()
-    colorCtx.arc(x, y, brushSize / 2, 0, Math.PI * 2)
-    colorCtx.fillStyle = activeTool === 'eraser' ? '#ffffff' : brushColor
-    colorCtx.fill()
-  }
-
-  function remoteDot(x: number, y: number, color: string, size: number, tool: string) {
-    colorCtx.beginPath()
-    colorCtx.arc(x, y, size / 2, 0, Math.PI * 2)
-    colorCtx.fillStyle = tool === 'eraser' ? '#ffffff' : color
-    colorCtx.fill()
-  }
-
-  function applyStroke(x1: number, y1: number, x2: number, y2: number) {
-    colorCtx.beginPath()
-    colorCtx.moveTo(x1, y1)
-    colorCtx.lineTo(x2, y2)
-    colorCtx.strokeStyle = activeTool === 'eraser' ? '#ffffff' : brushColor
-    colorCtx.lineWidth = brushSize
-    colorCtx.lineCap = 'round'
-    colorCtx.lineJoin = 'round'
-    colorCtx.stroke()
-  }
-
-  function remoteStroke(
-    x1: number,
-    y1: number,
-    x2: number,
-    y2: number,
-    color: string,
-    size: number,
-    tool: string,
-  ) {
-    colorCtx.beginPath()
-    colorCtx.moveTo(x1, y1)
-    colorCtx.lineTo(x2, y2)
-    colorCtx.strokeStyle = tool === 'eraser' ? '#ffffff' : color
-    colorCtx.lineWidth = size
-    colorCtx.lineCap = 'round'
-    colorCtx.lineJoin = 'round'
-    colorCtx.stroke()
   }
 
   // --- Export ---
@@ -323,6 +529,11 @@
         <input type="range" min="2" max="60" bind:value={brushSize} />
         <span class="size-val">{brushSize}</span>
       </label>
+      <label class="size-label">
+        <span>Dekking</span>
+        <input type="range" min="0.05" max="0.3" step="0.05" bind:value={brushOpacity} />
+        <span class="size-val">{Math.round(brushOpacity * 100)}%</span>
+      </label>
     </div>
 
     <div class="tool-group palette">
@@ -348,9 +559,19 @@
     </div>
 
     <div class="tool-group">
+      <label class="size-label">
+        <span>Blend</span>
+        <select class="blend-select" bind:value={blendMode}>
+          {#each blendModes as m}
+            <option value={m.value}>{m.label}</option>
+          {/each}
+        </select>
+      </label>
+    </div>
+
+    <div class="tool-group">
       <button class="action-btn" on:click={undo} disabled={!canUndo}>Undo</button>
       <button class="action-btn" on:click={redo} disabled={!canRedo}>Redo</button>
-      <!-- <button class="action-btn danger" on:click={clearCanvas}>Reset</button> -->
       <button class="action-btn primary" on:click={download}>Opslaan</button>
     </div>
   </div>
@@ -384,17 +605,18 @@
   .paint-app {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 0;
+    align-items: stretch;
+    width: 100%;
     font-family: system-ui, sans-serif;
     user-select: none;
   }
 
+  /* ── Toolbar ── */
   .toolbar {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     background: #d4d0c8;
     padding: 6px 10px;
     width: 100%;
@@ -405,36 +627,31 @@
     display: flex;
     align-items: center;
     gap: 4px;
-    padding-right: 12px;
-    /* border-right: 2px solid #808080; */
   }
 
-  .tool-group:last-child {
-    border-right: none;
+  /* Palette spans a full row below other controls on all sizes */
+  .tool-group.palette {
+    flex: 1 1 100%;
+    order: 10;
+    gap: 4px;
+    flex-wrap: wrap;
   }
 
   .tool-btn {
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
     background: #d4d0c8;
     border: 2px solid #808080;
-    /* border-top-color: #ffffff;
-    border-left-color: #ffffff;
-    border-bottom-color: #808080;
-    border-right-color: #808080; */
     cursor: pointer;
     color: #222;
+    touch-action: manipulation;
   }
 
   .tool-btn:active,
   .tool-btn.active {
-    /* border-top-color: #808080;
-    border-left-color: #808080;
-    border-bottom-color: #ffffff;
-    border-right-color: #ffffff; */
     background: #c0bdb5;
   }
 
@@ -446,7 +663,7 @@
   }
 
   .size-label input[type='range'] {
-    width: 80px;
+    width: 90px;
   }
 
   .size-val {
@@ -454,19 +671,25 @@
     font-size: 12px;
   }
 
-  .palette {
-    gap: 4px;
-    flex-wrap: wrap;
-    max-width: 200px;
+  .blend-select {
+    font-size: 12px;
+    background: #d4d0c8;
+    border: 2px solid #808080;
+    border-top-color: #404040;
+    border-left-color: #404040;
+    padding: 2px 4px;
+    cursor: pointer;
   }
 
   .color-swatch {
-    width: 22px;
-    height: 22px;
+    flex: 1;
+    min-width: 24px;
+    max-width: 36px;
+    height: 28px;
     border: 2px solid #808080;
     cursor: pointer;
     padding: 0;
-    flex-shrink: 0;
+    touch-action: manipulation;
   }
 
   .color-swatch.selected {
@@ -475,17 +698,21 @@
   }
 
   .color-picker {
-    width: 22px;
-    height: 22px;
+    flex: 1;
+    min-width: 24px;
+    max-width: 36px;
+    height: 28px;
     border: 2px solid #808080;
     padding: 0;
     cursor: pointer;
     background: none;
+    touch-action: manipulation;
   }
 
   .action-btn {
-    padding: 4px 10px;
-    font-size: 12px;
+    padding: 6px 10px;
+    font-size: 13px;
+    min-height: 40px;
     background: #d4d0c8;
     border: 2px solid transparent;
     border-top-color: #ffffff;
@@ -493,10 +720,11 @@
     border-bottom-color: #808080;
     border-right-color: #808080;
     cursor: pointer;
+    touch-action: manipulation;
   }
 
-  .action-btn:hover:not(:disabled) {
-    background: #c8c4bc;
+  .action-btn:active:not(:disabled) {
+    background: #c0bdb5;
   }
 
   .action-btn:disabled {
@@ -504,25 +732,24 @@
     cursor: default;
   }
 
-  .action-btn.danger {
-    color: #c00;
-  }
   .action-btn.primary {
     font-weight: bold;
   }
 
+  /* ── Canvas ── */
   .canvas-wrapper {
     position: relative;
-    display: inline-block;
+    display: block;
+    width: 100%;
     border: 2px solid #808080;
     border-top-color: #404040;
     border-left-color: #404040;
     line-height: 0;
+    box-sizing: border-box;
   }
 
   .sheet-img {
     display: block;
-    max-width: 100%;
     width: 100%;
     pointer-events: none;
     user-select: none;
@@ -533,10 +760,11 @@
     inset: 0;
     width: 100%;
     height: 100%;
-    mix-blend-mode: multiply;
+    mix-blend-mode: multiply; /* sheet lines always visible */
     touch-action: none;
   }
 
+  /* ── Loading ── */
   .loading-overlay {
     position: absolute;
     inset: 0;
@@ -556,11 +784,40 @@
     animation: bounce 1s infinite ease-in-out;
   }
 
-  .loading-dot:nth-child(2) { animation-delay: 0.15s; }
-  .loading-dot:nth-child(3) { animation-delay: 0.3s; }
+  .loading-dot:nth-child(2) {
+    animation-delay: 0.15s;
+  }
+  .loading-dot:nth-child(3) {
+    animation-delay: 0.3s;
+  }
 
   @keyframes bounce {
-    0%, 80%, 100% { transform: scale(0.7); opacity: 0.5; }
-    40% { transform: scale(1); opacity: 1; }
+    0%,
+    80%,
+    100% {
+      transform: scale(0.7);
+      opacity: 0.5;
+    }
+    40% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  /* ── Desktop: palette hoeft niet per se eigen rij ── */
+  @media (min-width: 700px) {
+    .tool-group.palette {
+      flex: 0 1 auto;
+      order: 0;
+      max-width: 220px;
+    }
+
+    .color-swatch,
+    .color-picker {
+      flex: 0 0 auto;
+      width: 24px;
+      max-width: none;
+      height: 24px;
+    }
   }
 </style>
