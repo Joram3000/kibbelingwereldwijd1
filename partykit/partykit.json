@@ -1,4 +1,10 @@
 {
 	"name": "kibbeling-kleurplaat",
-	"main": "src/index.ts"
+	"main": "src/index.ts",
+	"bindings": {
+		"SNAPSHOTS": {
+			"type": "r2_bucket",
+			"bucketName": "kibbeling-snapshots"
+		}
+	}
 }

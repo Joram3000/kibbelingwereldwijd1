@@ -1,30 +1,64 @@
 import type * as Party from 'partykit/server';
 
 type DrawEvent =
-	| { type: 'stroke'; x1: number; y1: number; x2: number; y2: number; color: string; size: number; tool: string }
-	| { type: 'dot'; x: number; y: number; color: string; size: number; tool: string };
+	| { type: 'stroke'; x1: number; y1: number; x2: number; y2: number; color: string; size: number; tool: string; opacity?: number }
+	| { type: 'dot'; x: number; y: number; color: string; size: number; tool: string; opacity?: number };
 
-const SNAPSHOT_KEY = 'snapshot'; // base64 JPEG van de huidige canvas staat
-const SINCE_KEY = 'since';       // strokes sinds laatste snapshot (max 100)
-const LEGACY_KEY = 'strokes';    // oude storage key, voor migratie
+// R2: snapshot JPEG per room (geen groottelimiet)
+// DO: since-strokes sinds laatste snapshot (max 100, klein genoeg voor 128 KB limiet)
+const SINCE_KEY = 'since';
 const MAX_SINCE = 100;
+
+// Legacy DO keys — alleen voor eenmalige migratie naar R2
+const LEGACY_SNAPSHOT_KEY = 'snapshot';
+const LEGACY_STROKES_KEY = 'strokes';
 
 export default class KleurplaatServer implements Party.Server {
 	private loaded = false;
 	private snapshot: string | null = null;
 	private since: DrawEvent[] = [];
-	private legacy: DrawEvent[] | null = null;
 
 	constructor(readonly room: Party.Room) {}
 
+	private get bucket(): R2Bucket | undefined {
+		return (this.room as any).env?.SNAPSHOTS as R2Bucket | undefined;
+	}
+
 	private async load() {
 		if (this.loaded) return;
-		this.snapshot = (await this.room.storage.get<string>(SNAPSHOT_KEY)) ?? null;
-		this.since = (await this.room.storage.get<DrawEvent[]>(SINCE_KEY)) ?? [];
-		if (!this.snapshot && this.since.length === 0) {
-			// Eenmalige migratie: lees oude strokes array als er nog geen snapshot is
-			this.legacy = (await this.room.storage.get<DrawEvent[]>(LEGACY_KEY)) ?? null;
+
+		// 1. Laad snapshot uit R2 (geen groottelimiet)
+		if (this.bucket) {
+			const obj = await this.bucket.get(this.room.id);
+			if (obj) {
+				this.snapshot = await obj.text();
+			}
 		}
+
+		// 2. Geen R2-snapshot → kijk in DO (eenmalige migratie van oude data)
+		if (!this.snapshot) {
+			const legacySnapshot = await this.room.storage.get<string>(LEGACY_SNAPSHOT_KEY);
+			if (legacySnapshot) {
+				this.snapshot = legacySnapshot;
+				if (this.bucket) {
+					await this.bucket.put(this.room.id, this.snapshot);
+					await this.room.storage.delete(LEGACY_SNAPSHOT_KEY);
+				}
+			}
+		}
+
+		// 3. Since-strokes uit DO (klein, past altijd binnen 128 KB)
+		this.since = (await this.room.storage.get<DrawEvent[]>(SINCE_KEY)) ?? [];
+
+		// 4. Legacy: alleroudste 'strokes'-key als er niks anders is
+		if (!this.snapshot && this.since.length === 0) {
+			const legacy = (await this.room.storage.get<DrawEvent[]>(LEGACY_STROKES_KEY)) ?? [];
+			if (legacy.length > 0) {
+				this.since = legacy;
+				await this.room.storage.delete(LEGACY_STROKES_KEY);
+			}
+		}
+
 		this.loaded = true;
 	}
 
@@ -33,7 +67,7 @@ export default class KleurplaatServer implements Party.Server {
 		conn.send(JSON.stringify({
 			type: 'state',
 			snapshot: this.snapshot,
-			strokes: this.legacy ?? this.since,
+			strokes: this.since,
 		}));
 	}
 
@@ -41,21 +75,29 @@ export default class KleurplaatServer implements Party.Server {
 		await this.load();
 		const event = JSON.parse(message) as any;
 
-		if (event.type === 'clear') return; // clear is uitgeschakeld
+		if (event.type === 'clear') return;
 
 		if (event.type === 'snapshot') {
 			this.snapshot = event.data;
 			this.since = [];
-			this.legacy = null;
-			try {
-				await this.room.storage.put(SNAPSHOT_KEY, this.snapshot);
-				await this.room.storage.put(SINCE_KEY, []);
-				await this.room.storage.delete(LEGACY_KEY);
-			} catch {
-				// Snapshot te groot (>128 KiB) — herstel vorige snapshot
-				this.snapshot = (await this.room.storage.get<string>(SNAPSHOT_KEY)) ?? null;
+
+			// Sla op in R2 — geen 128 KB limiet
+			if (this.bucket) {
+				try {
+					await this.bucket.put(this.room.id, this.snapshot!);
+				} catch {
+					// R2 onbereikbaar — snapshot blijft in-memory tot volgende herstart
+				}
 			}
-			return; // snapshot niet broadcasten naar anderen
+
+			// Wis since-strokes in DO
+			try {
+				await this.room.storage.put(SINCE_KEY, []);
+			} catch {
+				// ignore
+			}
+
+			return; // niet broadcasten
 		}
 
 		if (event.type === 'stroke' || event.type === 'dot') {

@@ -1,3 +1,4 @@
 packages:
   - 'sveltekit-app'
   - 'studio'
+  - 'partykit'

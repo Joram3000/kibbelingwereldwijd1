@@ -432,7 +432,7 @@
   // --- Persistence ---
   function saveToLocalStorage() {
     try {
-      localStorage.setItem(LS_KEY, colorCanvas.toDataURL('image/jpeg', 0.6))
+      localStorage.setItem(LS_KEY, colorCanvas.toDataURL('image/webp', 0.85))
     } catch {
       // localStorage full — ignore
     }
@@ -441,7 +441,7 @@
   function scheduleSave() {
     clearTimeout(saveTimer)
     saveTimer = setTimeout(() => {
-      const data = colorCanvas.toDataURL('image/jpeg', 0.7)
+      const data = colorCanvas.toDataURL('image/webp', 0.92)
       send({type: 'snapshot', data})
       saveToLocalStorage()
     }, 2000)
