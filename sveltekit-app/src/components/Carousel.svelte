@@ -7,7 +7,7 @@
   import { ChevronLeft, ChevronRight } from 'lucide-svelte'
 
   interface CarouselData {
-    slides?: Array<{ _type: string; asset?: unknown; caption?: string; url?: string }>
+    slides?: Array<{ _type: string; asset?: any; caption?: string; url?: string }>
   }
 
   interface Props {
@@ -83,7 +83,7 @@
       {#each carouselData?.slides ?? [] as slide}
         <div class="carousel__slide">
           {#if slide._type === 'image'}
-            <img src={urlFor(slide.asset).url()} alt={slide.caption || ''} />
+            <img src={urlFor(slide.asset as any).url()} alt={slide.caption || ''} />
             {#if slide.caption}
               <p>{slide.caption}</p>
             {/if}

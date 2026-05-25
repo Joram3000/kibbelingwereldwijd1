@@ -142,7 +142,25 @@
     }, 5000)
   })
 
+  function flushSnapshot() {
+    clearTimeout(saveTimer)
+    if (history.length === 0) return
+    const data = colorCanvas.toDataURL('image/webp', 0.92)
+    send({type: 'snapshot', data})
+    saveToLocalStorage()
+  }
+
+  function onVisibilityChange() {
+    if (document.visibilityState === 'hidden') flushSnapshot()
+  }
+
+  onMount(() => {
+    document.addEventListener('visibilitychange', onVisibilityChange)
+  })
+
   onDestroy(() => {
+    document.removeEventListener('visibilitychange', onVisibilityChange)
+    flushSnapshot()
     clearTimeout(fallbackTimer)
     clearTimeout(saveTimer)
     stopDwell()
