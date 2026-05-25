@@ -60,6 +60,7 @@
 
   // localStorage key per room — second line of defense if PartyKit is slow/down
   const LS_KEY = `kleurplaat-backup-${roomId}`
+  const LS_TS_KEY = `kleurplaat-ts-${roomId}`
 
   const palette = [
     '#f5c842',
@@ -80,6 +81,26 @@
   let socket: PartySocket
   const PARTYKIT_HOST = import.meta.env.VITE_PARTYKIT_HOST ?? 'localhost:1999'
 
+  function loadFromServer(msg: {snapshot?: string; strokes?: any[]}) {
+    colorCtx.fillStyle = '#ffffff'
+    colorCtx.fillRect(0, 0, CANVAS_W, CANVAS_H)
+    if (msg.snapshot) {
+      const img = new Image()
+      img.onload = () => {
+        colorCtx.drawImage(img, 0, 0)
+        for (const stroke of msg.strokes ?? []) applyRemote(stroke)
+        saveSnapshot()
+        saveToLocalStorage()
+        loading = false
+      }
+      img.src = msg.snapshot
+    } else {
+      for (const stroke of msg.strokes ?? []) applyRemote(stroke)
+      saveSnapshot()
+      loading = false
+    }
+  }
+
   onMount(() => {
     colorCtx = colorCanvas.getContext('2d')!
 
@@ -94,24 +115,28 @@
 
       if (msg.type === 'state') {
         clearTimeout(fallbackTimer)
-        colorCtx.fillStyle = '#ffffff'
-        colorCtx.fillRect(0, 0, CANVAS_W, CANVAS_H)
 
-        if (msg.snapshot) {
+        const serverTs: number = msg.savedAt ?? 0
+        const localTs = parseInt(localStorage.getItem(LS_TS_KEY) ?? '0')
+        const cached = localStorage.getItem(LS_KEY)
+
+        // Lokale state is nieuwer dan server (bijv. snapshot kon niet verstuurd worden)
+        if (cached && localTs > serverTs) {
           const img = new Image()
           img.onload = () => {
+            colorCtx.fillStyle = '#ffffff'
+            colorCtx.fillRect(0, 0, CANVAS_W, CANVAS_H)
             colorCtx.drawImage(img, 0, 0)
-            for (const stroke of msg.strokes ?? []) applyRemote(stroke)
             saveSnapshot()
-            saveToLocalStorage()
+            scheduleSave() // synct de nieuwere lokale staat terug naar de server
             loading = false
           }
-          img.src = msg.snapshot
-        } else {
-          for (const stroke of msg.strokes ?? []) applyRemote(stroke)
-          saveSnapshot()
-          loading = false
+          img.onerror = () => loadFromServer(msg) // localStorage corrupt → gebruik server
+          img.src = cached
+          return
         }
+
+        loadFromServer(msg)
         return
       }
 
@@ -451,6 +476,7 @@
   function saveToLocalStorage() {
     try {
       localStorage.setItem(LS_KEY, colorCanvas.toDataURL('image/webp', 0.85))
+      localStorage.setItem(LS_TS_KEY, Date.now().toString())
     } catch {
       // localStorage full — ignore
     }
